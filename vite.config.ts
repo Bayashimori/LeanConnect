@@ -8,5 +8,5 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-  base: '/proconGantChartTest/', // ←ここを追加（前後にスラッシュを忘れないように注意）
+  base: '/LeanConnect/', // ←ここを追加（前後にスラッシュを忘れないように注意）
 })
