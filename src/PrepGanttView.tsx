@@ -206,7 +206,7 @@ export default function PrepGanttView({
               onClick={() => onSelectTask(t)}
               className={`
                 ${t.color} text-white text-sm font-bold rounded-lg mx-1.5 my-1 
-                shadow-sm cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-md z-10 relative overflow-hidden
+                shadow-sm cursor-pointer transition-transform hover:scale-[1.02] hover:shadow-md z-10 relative
                 ${isCompleted ? 'opacity-50 border-2 border-dashed border-white/50' : 'opacity-90'}
                 ${t.needHelp ? 'ring-2 ring-red-500 animate-pulse border-red-500' : ''}
               `}
@@ -215,12 +215,18 @@ export default function PrepGanttView({
                 gridColumn: colIndex,
               }}
             >
-              <div className="sticky top-27.5 flex flex-col items-center justify-start py-2 w-full">
-                <div className="relative h-5 w-full flex justify-center mb-1">
+              {/* スクロール時に追従して上部に固定されるコンテナ */}
+              <div 
+                className="sticky top-16 flex flex-col items-center justify-start py-2 w-full max-h-[calc(100vh-120px)]"
+              >
+                <div className="relative h-5 w-full flex justify-center mb-1 shrink-0">
                   {isCompleted && <span className="absolute text-white bg-green-500 rounded-full w-4 h-4 flex items-center justify-center text-[10px]">✓</span>}
                   {t.needHelp && <span className="absolute right-0 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full shadow-md animate-bounce">🆘</span>}
                 </div>
-                <span className="tracking-widest drop-shadow-md" style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}>
+                <span 
+                  className="tracking-widest drop-shadow-md leading-tight" 
+                  style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}
+                >
                   {t.taskName}
                 </span>
               </div>

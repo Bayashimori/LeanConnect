@@ -71,7 +71,6 @@ export default function DayTimelineView({ tasks, timeSlots, onSelectTask, onHand
       <div
         className="grid w-full"
         style={{
-          // 各タスク列の最大幅を 80px に制限
           gridTemplateColumns: `70px repeat(${totalCols - 1}, minmax(80px, 120px))`,
           gridTemplateRows: `48px repeat(${timeSlots.length}, 60px)`
         }}
@@ -127,7 +126,7 @@ export default function DayTimelineView({ tasks, timeSlots, onSelectTask, onHand
               onClick={() => onSelectTask(t)}
               className={`
                 ${t.color} text-white text-sm font-bold rounded-lg mx-2 my-1 
-                shadow-sm cursor-pointer transition-transform hover:scale-[1.01] hover:shadow-md z-10 relative overflow-hidden
+                shadow-sm cursor-pointer transition-transform hover:scale-[1.01] hover:shadow-md z-10 relative
                 ${isCompleted ? 'opacity-50 border-2 border-dashed border-white/50' : 'opacity-95 hover:opacity-100'}
                 ${t.needHelp ? 'ring-2 ring-red-500 animate-pulse border-red-500' : ''}
               `}
@@ -136,24 +135,40 @@ export default function DayTimelineView({ tasks, timeSlots, onSelectTask, onHand
                 gridColumn: colIndex,
               }}
             >
-              <div className="sticky top-25 flex flex-col gap-2 p-3 w-full">
-                <div className="flex justify-between items-start">
-                  <span className="font-extrabold text-base tracking-wide drop-shadow-sm">{t.taskName}</span>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {isCompleted && <span className="text-white bg-green-500 rounded-full w-4 h-4 flex items-center justify-center text-[10px]">✓</span>}
-                    {t.needHelp && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-bounce">🆘 SOS</span>}
-                  </div>
+              {/* スクロール追従用の固定枠 (top-14 はヘッダー直下の位置) */}
+              <div 
+                className="sticky top-14 flex flex-row-reverse items-start gap-2 p-2.5 max-h-[calc(100vh-120px)]"
+                style={{
+                  writingMode: 'vertical-rl',
+                  textOrientation: 'upright'
+                }}
+              >
+                {/* ステータスバッジ（チェック・SOS） */}
+                <div className="flex items-center gap-1 shrink-0" style={{ writingMode: 'horizontal-tb' }}>
+                  {isCompleted && <span className="text-white bg-green-500 rounded-full w-4 h-4 flex items-center justify-center text-[10px]">✓</span>}
+                  {t.needHelp && <span className="bg-red-500 text-white text-[10px] px-1 py-0.5 rounded animate-bounce">SOS</span>}
                 </div>
 
+                {/* タスク名 */}
+                <span className="font-extrabold text-sm tracking-wide drop-shadow-sm leading-tight">
+                  {t.taskName}
+                </span>
+
+                {/* 常駐タスクの引き継ぎボタン */}
                 {isResident && (
-                  <div className="pt-2 border-t border-white/20 flex justify-between items-center text-xs bg-black/10 px-2 py-1 rounded">
-                    <span>担当: <strong className="underline">{t.currentId || '未割当'}</strong></span>
+                  <div 
+                    className="mt-auto border-r border-white/20 flex flex-col justify-between items-center gap-2.5 text-xs bg-black/10 p-1.5 rounded shrink-0"
+                    style={{ writingMode: 'horizontal-tb' }}
+                  >
+                    <span className="text-[10px] text-center font-bold">
+                      {t.currentId || '未割当'}
+                    </span>
                     <button 
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onHandover(t); }}
-                      className="bg-white text-gray-800 hover:bg-gray-100 px-2 py-0.5 rounded font-bold shadow-xs text-[11px]"
+                      className="bg-white text-gray-800 hover:bg-gray-100 px-1.5 py-0.5 rounded font-bold shadow-xs text-[10px] whitespace-nowrap"
                     >
-                      引き継ぎ &gt;
+                      引き継ぎ
                     </button>
                   </div>
                 )}
