@@ -72,7 +72,7 @@ export default function DayTimelineView({ tasks, timeSlots, onSelectTask, onHand
         className="grid w-full"
         style={{
           // 各タスク列の最大幅を 80px に制限
-          gridTemplateColumns: `70px repeat(${totalCols - 1}, minmax(40px, 80px))`,
+          gridTemplateColumns: `70px repeat(${totalCols - 1}, minmax(80px, 120px))`,
           gridTemplateRows: `48px repeat(${timeSlots.length}, 60px)`
         }}
       >
