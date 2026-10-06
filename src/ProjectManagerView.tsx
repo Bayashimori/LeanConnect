@@ -677,7 +677,7 @@ export default function ProjectManagerView({
                   required 
                   value={newGroupName} 
                   onChange={e => setNewGroupName(e.target.value)} 
-                  className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold" 
+                  className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-base font-bold" 
                   placeholder="例: 企画" 
                 />
               </div>
@@ -707,7 +707,7 @@ export default function ProjectManagerView({
                   required 
                   value={newTaskName} 
                   onChange={e => setNewTaskName(e.target.value)} 
-                  className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold" 
+                  className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-base font-bold" 
                   placeholder="例: 受付対応" 
                 />
               </div>
@@ -718,7 +718,7 @@ export default function ProjectManagerView({
                   <select 
                     value={newTaskType} 
                     onChange={e => setNewTaskType(e.target.value as 'resident' | 'individual')} 
-                    className="w-full border border-gray-300 rounded-xl p-3 bg-white font-bold text-sm text-gray-800 outline-none"
+                    className="w-full border border-gray-300 rounded-xl p-3 bg-white font-bold text-base text-gray-800 outline-none"
                   >
                     <option value="resident">📌 常駐タスク (引き継ぎ管理あり)</option>
                     <option value="individual">⚡ 個別タスク (単発・ステージ運営など)</option>
@@ -731,7 +731,7 @@ export default function ProjectManagerView({
                 <textarea 
                   value={newTaskDescription} 
                   onChange={e => setNewTaskDescription(e.target.value)} 
-                  className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-sm" 
+                  className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-base" 
                   placeholder="詳細や手順を入力..." 
                   rows={2} 
                 />
@@ -743,7 +743,7 @@ export default function ProjectManagerView({
                   <select 
                     value={newTaskGroup} 
                     onChange={e => setNewTaskGroup(e.target.value)} 
-                    className="w-full border border-gray-300 rounded-xl p-3 bg-white font-bold text-sm text-gray-800 outline-none"
+                    className="w-full border border-gray-300 rounded-xl p-3 bg-white font-bold text-base text-gray-800 outline-none"
                   >
                     <option value="">(未分類)</option>
                     {projectGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -755,11 +755,11 @@ export default function ProjectManagerView({
                 <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-3 border border-gray-200">
                   <div className="flex flex-col gap-1 flex-1">
                     <span className="text-xs font-bold text-gray-500">開始日</span>
-                    <input type="date" required value={newTaskStart} onChange={e => setNewTaskStart(e.target.value)} className="bg-white border border-gray-300 rounded-lg p-1.5 text-xs font-bold outline-none" />
+                    <input type="date" required value={newTaskStart} onChange={e => setNewTaskStart(e.target.value)} className="bg-white border border-gray-300 rounded-lg p-1.5 text-base font-bold outline-none" />
                   </div>
                   <div className="flex flex-col gap-1 flex-1">
                     <span className="text-xs font-bold text-gray-500">終了日</span>
-                    <input type="date" required value={newTaskEnd} onChange={e => setNewTaskEnd(e.target.value)} className="bg-white border border-gray-300 rounded-lg p-1.5 text-xs font-bold outline-none" />
+                    <input type="date" required value={newTaskEnd} onChange={e => setNewTaskEnd(e.target.value)} className="bg-white border border-gray-300 rounded-lg p-1.5 text-base font-bold outline-none" />
                   </div>
                 </div>
               ) : (
@@ -811,7 +811,7 @@ export default function ProjectManagerView({
                   value={selectedTask.taskName} 
                   disabled={project.status === 'completed'}
                   onChange={e => updateSelectedTask({ taskName: e.target.value })} 
-                  className="w-full border border-gray-300 rounded-xl p-2.5 font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none text-sm disabled:bg-gray-100" 
+                  className="w-full border border-gray-300 rounded-xl p-2.5 font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none text-base disabled:bg-gray-100" 
                 />
               </div>
 
@@ -821,7 +821,7 @@ export default function ProjectManagerView({
                   value={selectedTask.description || ''} 
                   disabled={project.status === 'completed'}
                   onChange={e => updateSelectedTask({ description: e.target.value })} 
-                  className="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100" 
+                  className="w-full border border-gray-200 rounded-xl p-2.5 text-base bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100" 
                   placeholder="説明を入力..." 
                   rows={2} 
                 />
@@ -835,7 +835,7 @@ export default function ProjectManagerView({
                       value={selectedTask.group} 
                       disabled={project.status === 'completed'}
                       onChange={e => updateSelectedTask({ group: e.target.value })} 
-                      className="w-full border border-gray-300 rounded-xl p-2 bg-white text-xs font-bold text-gray-800 outline-none disabled:bg-gray-100"
+                      className="w-full border border-gray-300 rounded-xl p-2 bg-white text-base font-bold text-gray-800 outline-none disabled:bg-gray-100"
                     >
                       <option value="">(未分類)</option>
                       {projectGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -849,14 +849,14 @@ export default function ProjectManagerView({
                   </label>
                   {selectedTask.taskMode === 'prep' ? (
                     <div className="flex flex-col gap-1">
-                      <input type="date" disabled={project.status === 'completed'} value={selectedTask.startDate} onChange={e => updateSelectedTask({ startDate: e.target.value })} className="w-full border border-gray-300 rounded-lg p-1 text-xs font-bold disabled:bg-gray-100" />
-                      <input type="date" disabled={project.status === 'completed'} value={selectedTask.endDate} onChange={e => updateSelectedTask({ endDate: e.target.value })} className="w-full border border-gray-300 rounded-lg p-1 text-xs font-bold disabled:bg-gray-100" />
+                      <input type="date" disabled={project.status === 'completed'} value={selectedTask.startDate} onChange={e => updateSelectedTask({ startDate: e.target.value })} className="w-full border border-gray-300 rounded-lg p-1 text-base font-bold disabled:bg-gray-100" />
+                      <input type="date" disabled={project.status === 'completed'} value={selectedTask.endDate} onChange={e => updateSelectedTask({ endDate: e.target.value })} className="w-full border border-gray-300 rounded-lg p-1 text-base font-bold disabled:bg-gray-100" />
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
-                      <input type="time" disabled={project.status === 'completed'} value={selectedTask.startTime || '10:00'} onChange={e => updateSelectedTask({ startTime: e.target.value })} className="flex-1 border-2 border-blue-400 rounded-lg py-1 px-1 text-center text-sm font-extrabold text-blue-600 outline-none bg-white disabled:bg-gray-100" />
+                      <input type="time" disabled={project.status === 'completed'} value={selectedTask.startTime || '10:00'} onChange={e => updateSelectedTask({ startTime: e.target.value })} className="flex-1 border-2 border-blue-400 rounded-lg py-1 px-1 text-center text-base font-extrabold text-blue-600 outline-none bg-white disabled:bg-gray-100" />
                       <span className="font-bold text-gray-400">〜</span>
-                      <input type="time" disabled={project.status === 'completed'} value={selectedTask.endTime || '12:00'} onChange={e => updateSelectedTask({ endTime: e.target.value })} className="flex-1 border-2 border-blue-400 rounded-lg py-1 px-1 text-center text-sm font-extrabold text-blue-600 outline-none bg-white disabled:bg-gray-100" />
+                      <input type="time" disabled={project.status === 'completed'} value={selectedTask.endTime || '12:00'} onChange={e => updateSelectedTask({ endTime: e.target.value })} className="flex-1 border-2 border-blue-400 rounded-lg py-1 px-1 text-center text-base font-extrabold text-blue-600 outline-none bg-white disabled:bg-gray-100" />
                     </div>
                   )}
                 </div>
@@ -885,7 +885,7 @@ export default function ProjectManagerView({
                         }
                         e.target.value = '';
                       }} 
-                      className="text-xs border rounded-lg p-1 bg-white outline-none"
+                      className="text-base border rounded-lg p-1 bg-white outline-none"
                     >
                       <option value="">＋追加</option>
                       {projectMembers.filter(m => !selectedTask.assignees?.includes(m.name)).map(m => (

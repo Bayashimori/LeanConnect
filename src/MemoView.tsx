@@ -227,7 +227,6 @@ export default function MemoView({
                       }`}
                       title="リアクションを追加"
                     >
-                      {/* <span className="text-sm leading-none">😀</span> */}
                       <span className="text-[11px] leading-none font-extrabold">＋</span>
                     </button>
                   </div>
@@ -260,7 +259,7 @@ export default function MemoView({
       </div>
 
       {!isReadOnly && (
-        <div className="p-3 md:p-4 bg-white border-t border-gray-200 shrink-0 shadow-sm z-20">
+        <div className="absolute bottom-0 left-0 right-0 md:relative p-3 md:p-4 bg-white border-t border-gray-200 shrink-0 shadow-sm z-20">
           <form onSubmit={handleAddMemo} className="max-w-4xl mx-auto flex items-end gap-2">
             <div className="flex-1 relative">
               <textarea
@@ -273,7 +272,7 @@ export default function MemoView({
                 }}
                 rows={2}
                 placeholder="メッセージを入力... (Ctrl + Enter で送信)"
-                className="w-full border border-gray-300 rounded-2xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium resize-none bg-gray-50 focus:bg-white transition-colors"
+                className="w-full border border-gray-300 rounded-2xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-base font-medium resize-none bg-gray-50 focus:bg-white transition-colors"
               />
             </div>
             <button
