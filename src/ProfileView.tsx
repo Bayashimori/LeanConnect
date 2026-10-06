@@ -200,7 +200,7 @@ export default function ProfileView({ currentUser, onUpdateUser, onBack }: Profi
               required
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold text-gray-800"
+              className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-base font-bold text-gray-800"
               placeholder="例: たろう / Taro"
             />
           </div>
@@ -213,7 +213,7 @@ export default function ProfileView({ currentUser, onUpdateUser, onBack }: Profi
                 type="text"
                 disabled
                 value={defaultUsername}
-                className="w-full border border-gray-200 bg-gray-100 rounded-xl p-3 pl-7 outline-none text-sm font-medium font-mono text-gray-500 cursor-not-allowed"
+                className="w-full border border-gray-200 bg-gray-100 rounded-xl p-3 pl-7 outline-none text-base font-medium font-mono text-gray-500 cursor-not-allowed"
               />
             </div>
             <p className="text-[11px] text-gray-400 mt-1">※ メールアドレスの「@」より前のアカウント名が自動的に設定されます。</p>

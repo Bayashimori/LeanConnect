@@ -12,29 +12,48 @@ type ProjectSettingsViewProps = {
 export default function ProjectSettingsView({ project, projects, setProjects, onBackToHome, requestConfirm }: ProjectSettingsViewProps) {
   const [projectName, setProjectName] = useState(project.name);
   const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projectName.trim()) return;
+    setErrorMessage('');
+    const trimmedName = projectName.trim();
+    if (!trimmedName) {
+      setErrorMessage('プロジェクト名を入力してください');
+      return;
+    }
 
-    setProjects(projects.map(p => p.id === project.id ? { ...p, name: projectName.trim() } : p));
-    setSuccessMessage('設定を保存しました');
-    
-    // 3秒後にメッセージを自動で消す
-    setTimeout(() => {
-      setSuccessMessage('');
-    }, 3000);
+    setIsSaving(true);
+
+    try {
+      setProjects(projects.map(p => p.id === project.id ? { ...p, name: trimmedName } : p));
+      setSuccessMessage('設定を保存しました');
+      
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 3000);
+    } catch {
+      setErrorMessage('保存に失敗しました。通信状況を確認して再度お試しください。');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDeleteProject = () => {
+    setErrorMessage('');
     requestConfirm({
       title: 'プロジェクトの削除',
       message: `本当にプロジェクト「${project.name}」を削除しますか？\n紐づくタスク、予算、メモなどのデータはすべて失われます。`,
       confirmText: '削除する',
       isDanger: true,
-      onConfirm: () => {
-        setProjects(projects.filter(p => p.id !== project.id));
-        onBackToHome();
+      onConfirm: async () => {
+        try {
+          setProjects(projects.filter(p => p.id !== project.id));
+          onBackToHome();
+        } catch {
+          setErrorMessage('プロジェクトの削除に失敗しました。');
+        }
       }
     });
   };
@@ -51,14 +70,18 @@ export default function ProjectSettingsView({ project, projects, setProjects, on
           プロジェクト設定
         </div>
 
-        {/* --- 成功通知用バナーエリア --- */}
+        {errorMessage && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 animate-in fade-in duration-200 shadow-sm">
+            <span>⚠</span> {errorMessage}
+          </div>
+        )}
+
         {successMessage && (
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 animate-in fade-in duration-200 shadow-sm">
             <span>✓</span> {successMessage}
           </div>
         )}
 
-        {/* --- プロジェクト名変更セクション --- */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
           <h3 className="font-bold text-gray-800 text-base mb-4">プロジェクト名の変更</h3>
           <form onSubmit={handleSave} className="flex flex-col gap-4">
@@ -67,20 +90,26 @@ export default function ProjectSettingsView({ project, projects, setProjects, on
               <input 
                 type="text" 
                 value={projectName}
-                onChange={e => { setProjectName(e.target.value); setSuccessMessage(''); }}
-                className="w-full border border-gray-300 rounded-xl p-3 font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                onChange={e => { setProjectName(e.target.value); setSuccessMessage(''); setErrorMessage(''); }}
+                className="w-full border border-gray-300 rounded-xl p-3 font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none text-base"
                 required
+                disabled={isSaving}
               />
             </div>
             <div className="flex justify-end">
-              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm">
-                変更を保存
+              <button 
+                type="submit" 
+                disabled={isSaving}
+                className={`font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm ${
+                  isSaving ? 'bg-blue-400 cursor-not-allowed text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {isSaving ? '保存中...' : '変更を保存'}
               </button>
             </div>
           </form>
         </div>
 
-        {/* --- 危険なエリア (削除) --- */}
         <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-6">
           <h3 className="font-bold text-red-600 text-base mb-2">危険なエリア</h3>
           <p className="text-xs text-gray-500 mb-4 leading-relaxed">
@@ -90,7 +119,10 @@ export default function ProjectSettingsView({ project, projects, setProjects, on
             <button 
               type="button" 
               onClick={handleDeleteProject}
-              className="bg-red-50 hover:bg-red-100 border border-red-300 text-red-600 font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm"
+              disabled={isSaving}
+              className={`font-bold text-sm px-6 py-2.5 rounded-xl transition-colors shadow-sm ${
+                isSaving ? 'bg-red-50 text-red-300 border border-red-100 cursor-not-allowed' : 'bg-red-50 hover:bg-red-100 border border-red-300 text-red-600'
+              }`}
             >
               このプロジェクトを削除
             </button>
