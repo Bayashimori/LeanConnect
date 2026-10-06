@@ -132,7 +132,7 @@ export default function MemberView({
             placeholder="名前を検索" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 outline-none text-sm font-medium p-1"
+            className="flex-1 outline-none text-base font-medium p-1"
           />
         </div>
 
@@ -155,7 +155,7 @@ export default function MemberView({
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => showMemberTasks(m)} className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl transition-colors cursor-pointer">
+                  <button onClick={() => showMemberTasks(m)} className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-base font-bold px-3 py-2 rounded-xl transition-colors cursor-pointer">
                     担当タスク
                   </button>
                   {!isReadOnly && members.length > 1 && (
@@ -189,26 +189,26 @@ export default function MemberView({
         <div className="flex justify-between items-center px-6 py-5 border-b border-gray-100 bg-gray-50 shrink-0">
           <div>
             <h3 className="font-extrabold text-lg text-gray-800">メンバーを招待</h3>
-            <p className="text-xs text-gray-400 font-medium">LeanConnectに登録済みのユーザーを検索</p>
+            <p className="text-base text-gray-400 font-medium">LeanConnectに登録済みのユーザーを検索</p>
           </div>
           <button onClick={() => setIsAddPanelOpen(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none cursor-pointer">&times;</button>
         </div>
         
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
           <div>
-            <label className="block text-xs font-bold text-gray-500 mb-1">相手のGoogleメールアドレス</label>
+            <label className="block text-base font-bold text-gray-500 mb-1">相手のGoogleメールアドレス</label>
             <input 
               type="email" 
               autoFocus
               value={newMemberEmail} 
               onChange={handleEmailChange} 
-              className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium" 
+              className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-base font-medium" 
               placeholder="example@gmail.com" 
             />
           </div>
 
           {isSearching && (
-            <div className="flex items-center gap-2 text-xs font-bold text-gray-400 py-2">
+            <div className="flex items-center gap-2 text-base font-bold text-gray-400 py-2">
               <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
               ユーザーを検索中...
             </div>
@@ -226,14 +226,14 @@ export default function MemberView({
                 )}
                 <div className="flex-1 overflow-hidden">
                   <p className="font-extrabold text-gray-800 text-base truncate">{matchedUser.name}</p>
-                  <p className="text-xs text-gray-500 font-medium truncate">{matchedUser.email}</p>
+                  <p className="text-base text-gray-500 font-medium truncate">{matchedUser.email}</p>
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={() => handleInviteUser(matchedUser)}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-base rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <span>＋</span> このユーザーをプロジェクトに追加
               </button>
@@ -241,7 +241,7 @@ export default function MemberView({
           )}
 
           {searchFeedback && !matchedUser && !isSearching && (
-            <div className="bg-orange-50 border border-orange-200 text-orange-700 p-3 rounded-xl text-xs font-bold leading-relaxed">
+            <div className="bg-orange-50 border border-orange-200 text-orange-700 p-3 rounded-xl text-base font-bold leading-relaxed">
               {searchFeedback}
             </div>
           )}
@@ -256,7 +256,7 @@ export default function MemberView({
                 {selectedMemberTasks.member.avatarUrl ? (
                   <img src={selectedMemberTasks.member.avatarUrl} alt={selectedMemberTasks.member.name} className="w-8 h-8 rounded-full border object-cover" />
                 ) : (
-                  <div className={`${selectedMemberTasks.member.color} w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold`}>
+                  <div className={`${selectedMemberTasks.member.color} w-8 h-8 rounded-full flex items-center justify-center text-white text-base font-bold`}>
                     {selectedMemberTasks.member.name.charAt(0)}
                   </div>
                 )}
@@ -266,7 +266,7 @@ export default function MemberView({
             </div>
             <div className="overflow-y-auto flex flex-col gap-3">
               {selectedMemberTasks.tasks.length === 0 ? (
-                 <p className="text-gray-400 text-center font-bold text-sm my-4">担当タスクはありません</p>
+                 <p className="text-gray-400 text-center font-bold text-base my-4">担当タスクはありません</p>
               ) : (
                 selectedMemberTasks.tasks.map(t => (
                   <div key={t.taskId} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
@@ -279,12 +279,12 @@ export default function MemberView({
                       </span>
                     </div>
                     <div className="flex justify-between items-start mb-1">
-                      <span className="font-bold text-gray-800 text-sm">{t.taskName}</span>
+                      <span className="font-bold text-gray-800 text-base">{t.taskName}</span>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${t.taskStatus === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
                         {t.taskStatus === 'completed' ? '完了' : '進行中'}
                       </span>
                     </div>
-                    <p className="text-xs font-bold text-gray-500">
+                    <p className="text-base font-bold text-gray-500">
                       {t.taskMode === 'prep' ? `${t.startDate} 〜 ${t.endDate}` : `${t.startTime} 〜 ${t.endTime}`}
                     </p>
                   </div>
