@@ -229,7 +229,7 @@ export default function ProjectManagerView({
     setNewTaskStartTime('10:00');
     setNewTaskEndTime('12:00');
     setNewTaskType('resident');
-    setNewTaskAssignees(projectMembers.map(mem => mem.name).slice(0, 2));
+    setNewTaskAssignees(projectMembers.map(mem => mem.id).slice(0, 2));
     setIsTaskModalOpen(true);
   };
 
@@ -573,6 +573,7 @@ export default function ProjectManagerView({
                   <DayTimelineView 
                     tasks={projectTasks}
                     timeSlots={dynamicTimeSlots}
+                    members={projectMembers}
                     onSelectTask={setSelectedTask}
                     onHandover={handleHandover}
                   />
@@ -865,14 +866,15 @@ export default function ProjectManagerView({
               <div>
                 <label className="block text-sm font-bold text-gray-500 mb-1">割り当てメンバー</label>
                 <div className="flex flex-wrap gap-2 items-center bg-gray-50 p-2.5 rounded-xl border border-gray-200 min-h-12">
-                  {selectedTask.assignees?.map((name) => {
-                    const member = projectMembers.find(m => m.name === name);
+                  {selectedTask.assignees?.map((assigneeId) => {
+                    const member = projectMembers.find(m => m.id === assigneeId);
                     const colorClass = member ? member.color : 'bg-gray-400';
+                    const displayName = member ? member.name : '不明';
                     return (
-                      <span key={name} className={`${colorClass} text-white px-2.5 py-1 rounded-full flex items-center justify-center text-xs font-bold shadow-sm`}>
-                        {name}
+                      <span key={assigneeId} className={`${colorClass} text-white px-2.5 py-1 rounded-full flex items-center justify-center text-xs font-bold shadow-sm`}>
+                        {displayName}
                         {project.status === 'active' && (
-                          <button onClick={() => updateSelectedTask({ assignees: selectedTask.assignees?.filter(a => a !== name) })} className="ml-1.5 text-white hover:text-red-200">&times;</button>
+                          <button onClick={() => updateSelectedTask({ assignees: selectedTask.assignees?.filter(a => a !== assigneeId) })} className="ml-1.5 text-white hover:text-red-200">&times;</button>
                         )}
                       </span>
                     );
@@ -888,8 +890,8 @@ export default function ProjectManagerView({
                       className="text-base border rounded-lg p-1 bg-white outline-none"
                     >
                       <option value="">＋追加</option>
-                      {projectMembers.filter(m => !selectedTask.assignees?.includes(m.name)).map(m => (
-                        <option key={m.id} value={m.name}>{m.name}</option>
+                      {projectMembers.filter(m => !selectedTask.assignees?.includes(m.id)).map(m => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
                       ))}
                     </select>
                   )}
@@ -900,7 +902,7 @@ export default function ProjectManagerView({
                 <div className="bg-pink-50 p-3 rounded-xl border border-pink-200 flex flex-col gap-2">
                   <p className="text-xs font-bold text-pink-700">📌 常駐タスク引き継ぎ管理</p>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold">現在の担当: {selectedTask.currentId || '未割当'}</span>
+                    <span className="text-sm font-bold">現在の担当: {projectMembers.find(m => m.id === selectedTask.currentId)?.name || '未割当'}</span>
                     {project.status === 'active' && (
                       <button type="button" onClick={() => handleHandover(selectedTask)} className="bg-pink-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-pink-700 transition-colors cursor-pointer">
                         次の担当者へ引き継ぎ &gt;

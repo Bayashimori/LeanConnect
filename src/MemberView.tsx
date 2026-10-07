@@ -109,7 +109,7 @@ export default function MemberView({
   };
 
   const showMemberTasks = (member: Member) => {
-    const mTasks = tasks.filter(t => t.assignees?.includes(member.name) || t.currentId === member.name);
+    const mTasks = tasks.filter(t => t.assignees?.includes(member.id) || t.currentId === member.id);
     setSelectedMemberTasks({ member, tasks: mTasks });
   };
 

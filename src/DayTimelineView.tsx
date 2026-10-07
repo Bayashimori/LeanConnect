@@ -1,14 +1,15 @@
 import { useMemo, useCallback } from 'react';
-import type { Task } from './types';
+import type { Task, Member } from './types';
 
 type DayTimelineViewProps = {
   tasks: Task[];
   timeSlots: string[];
+  members: Member[];
   onSelectTask: (task: Task) => void;
   onHandover: (task: Task) => void;
 };
 
-export default function DayTimelineView({ tasks, timeSlots, onSelectTask, onHandover }: DayTimelineViewProps) {
+export default function DayTimelineView({ tasks, timeSlots, members, onSelectTask, onHandover }: DayTimelineViewProps) {
   
   const getRowByTimeString = useCallback((timeStr?: string, isEnd = false) => {
     if (!timeStr || timeSlots.length === 0) return 2;
@@ -161,7 +162,7 @@ export default function DayTimelineView({ tasks, timeSlots, onSelectTask, onHand
                     style={{ writingMode: 'horizontal-tb' }}
                   >
                     <span className="text-[10px] text-center font-bold">
-                      {t.currentId || '未割当'}
+                      {members.find(m => m.id === t.currentId)?.name || '未割当'}
                     </span>
                     <button 
                       type="button"
