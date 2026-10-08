@@ -36,23 +36,26 @@ export type Group = {
   createdAt?: number;
 };
 
+export type TaskMode = 'prep' | 'day';
+export type TaskType = 'resident' | 'individual';
+
 export type Task = {
   taskId: string;
   projectId: string;
-  taskMode: 'prep' | 'day';
+  taskMode: TaskMode;
   taskName: string;
   taskStatus: string;
   needHelp: boolean;
-  group: string; 
+  group: string;
   startDate: string;
   endDate: string;
   description?: string;
-  taskType?: 'resident' | 'individual';
+  taskType?: TaskType;
   startTime?: string;
   endTime?: string;
-  currentId?: string; // 担当者のユーザーID(uid)。表示名ではない(同姓同名対策)
+  currentId?: string; // 担当者のユーザーID(uid)
   color: string;
-  assignees?: string[]; // 割り当てメンバーのユーザーID(uid)の配列。表示名ではない
+  assignees?: string[]; // 割り当てメンバーのユーザーID(uid)の配列
   remind?: string;
   createdAt?: number;
 };
@@ -90,8 +93,9 @@ export type Member = {
   id: string;
   projectId: string;
   name: string;
-  username?: string; // @ユーザー名(メールアドレスの@より前)。同姓同名の見分け用
+  username?: string; // @ユーザー名
   avatarUrl?: string;
+  iconUrl?: string;
   color: string;
   isMe?: boolean;
 };
@@ -117,8 +121,7 @@ export const NAV_ITEMS = [
   { id: 'memo', label: '共有メモ', iconPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2" }
 ];
 
-// 同姓同名のメンバーを見分けるための表示用ID。
-// @ユーザー名があればそれを、なければユーザーID(uid)の先頭5文字を使う。
+// 同姓同名のメンバーを見分けるための表示用ID
 export const memberIdLabel = (m: Member) =>
   m.username ? `@${m.username}` : `#${m.id.slice(0, 5)}`;
 

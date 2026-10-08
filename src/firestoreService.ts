@@ -245,6 +245,7 @@ export const subscribeProjectData = (
           id: uid,
           projectId,
           name: uData?.name || `メンバー (${uid.slice(0, 5)})`,
+          username: uData?.username || uData?.name || `user_${uid.slice(0, 5)}`,
           avatarUrl: uData?.avatarUrl || undefined,
           color: uData?.color || colors[index % colors.length]
         } as Member;
@@ -252,8 +253,9 @@ export const subscribeProjectData = (
 
       const memberList = await Promise.all(memberPromises);
       callbacks.setMembers(memberList);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (error) { /* empty */ }
+    } catch {
+      /* Ignore member loading errors. */
+    }
   });
 
   return () => {
