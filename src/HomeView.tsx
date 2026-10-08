@@ -146,9 +146,16 @@ export default function HomeView({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {projects.map((p) => {
-                const pTasks = tasks.filter(t => t.projectId === p.id);
-                const compTasks = pTasks.filter(t => t.taskStatus === 'completed').length;
-                const progress = pTasks.length > 0 ? Math.round((compTasks / pTasks.length) * 100) : 0;
+                // 準備タスクの進捗計算
+                const prepTasks = tasks.filter(t => t.projectId === p.id && (!t.taskMode || t.taskMode === 'prep'));
+                const compPrepTasks = prepTasks.filter(t => t.taskStatus === 'completed').length;
+                const prepProgress = prepTasks.length > 0 ? Math.round((compPrepTasks / prepTasks.length) * 100) : 0;
+
+                // 当日タスクの進捗計算
+                const dayTasks = tasks.filter(t => t.projectId === p.id && t.taskMode === 'day');
+                const compDayTasks = dayTasks.filter(t => t.taskStatus === 'completed').length;
+                const dayProgress = dayTasks.length > 0 ? Math.round((compDayTasks / dayTasks.length) * 100) : 0;
+
                 const isCompleted = p.status === 'completed';
 
                 return (
@@ -181,16 +188,33 @@ export default function HomeView({
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-2 pt-3 border-t border-gray-100">
-                      <div className="flex justify-between items-center text-xs font-bold text-gray-500">
-                        <span>進捗状況 ({compTasks}/{pTasks.length})</span>
-                        <span className="text-blue-600 font-extrabold">{progress}%</span>
+                    <div className="flex flex-col gap-3 pt-3 border-t border-gray-100">
+                      {/* 準備モード進捗 */}
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                          <span>準備進捗 ({compPrepTasks}/{prepTasks.length})</span>
+                          <span className="text-blue-600 font-extrabold">{prepProgress}%</span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-300 ${isCompleted ? 'bg-green-500' : 'bg-blue-600'}`}
+                            style={{ width: `${prepProgress}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full transition-all duration-300 ${isCompleted ? 'bg-green-500' : 'bg-blue-600'}`}
-                          style={{ width: `${progress}%` }}
-                        />
+
+                      {/* 当日モード進捗 */}
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                          <span>当日進捗 ({compDayTasks}/{dayTasks.length})</span>
+                          <span className="text-orange-500 font-extrabold">{dayProgress}%</span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-300 ${isCompleted ? 'bg-green-500' : 'bg-orange-500'}`}
+                            style={{ width: `${dayProgress}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>

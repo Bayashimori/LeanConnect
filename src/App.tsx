@@ -45,9 +45,6 @@ export default function App() {
   const requestConfirm = (options: ConfirmOptions) => setConfirmState({ ...options, isOpen: true });
   const closeConfirm = () => setConfirmState(prev => prev ? { ...prev, isOpen: false } : null);
 
-  // Firebase Auth側のログイン状態を監視し、途中でセッションが切れた場合は
-  // アプリ側の状態も確実にログアウトにする(切れたまま操作を続けて
-  // Firestoreへの書き込みが失敗し続ける、といった事態を防ぐため)。
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (!firebaseUser) {
@@ -66,25 +63,34 @@ export default function App() {
     return () => unsubscribe();
   }, [currentUser]);
 
+  // すべての所有・参加プロジェクトのタスクデータを一元的に自動取得・同期
   useEffect(() => {
-    if (!activeProjectId) return;
+    if (!projects || projects.length === 0) return;
 
-    const unsubscribe = subscribeProjectData(activeProjectId, {
-      setTasks,
-      setGroups,
-      setExpenses,
-      setMemos,
-      setMembers
+    const unsubscribes = projects.map(project => {
+      return subscribeProjectData(project.id, {
+        setTasks: (updater) => {
+          setTasks(prev => {
+            const currentProjectTasks = prev.filter(t => t.projectId !== project.id);
+            const projectOldTasks = prev.filter(t => t.projectId === project.id);
+            const newProjectTasks: Task[] = typeof updater === 'function' ? (updater as (prev: Task[]) => Task[])(projectOldTasks) : updater;
+            
+            // projectIdが未設定の場合は補完
+            const fixedProjectTasks = newProjectTasks.map((t: Task) => ({ ...t, projectId: project.id }));
+            return [...currentProjectTasks, ...fixedProjectTasks];
+          });
+        },
+        setGroups,
+        setExpenses,
+        setMemos,
+        setMembers
+      });
     });
 
-    // 以前はここで setTasks([]) などを呼び、プロジェクトを離れるたびに
-    // 画面上のタスク等を空にしていたが、これが原因でホームに戻ると
-    // 進捗が0%に見えてしまっていた(各ビュー側で project.id によるフィルタ済みなので
-    // 他プロジェクトのデータが混ざる心配はなく、クリア処理は不要だった)。
     return () => {
-      unsubscribe();
+      unsubscribes.forEach(unsub => unsub());
     };
-  }, [activeProjectId]);
+  }, [projects]);
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
@@ -111,7 +117,6 @@ export default function App() {
         deleteProjectDoc(p.id).catch(err => console.error('プロジェクトの削除に失敗しました', err));
       });
 
-      // 変更があったプロジェクトだけを保存する(他ユーザーの変更を上書きしないため)
       processedNext.forEach(p => {
         const old = prev.find(op => op.id === p.id);
         if (!old || JSON.stringify(old) !== JSON.stringify(p)) {
@@ -128,24 +133,27 @@ export default function App() {
   const handleSetTasks: React.Dispatch<React.SetStateAction<Task[]>> = (valueOrUpdater) => {
     if (!activeProjectId) return;
     setTasks(prev => {
-      const next = typeof valueOrUpdater === 'function' ? valueOrUpdater(prev) : valueOrUpdater;
-      const removed = prev.filter(t => !next.some(nt => nt.taskId === t.taskId));
+      const activeTasks = prev.filter(t => t.projectId === activeProjectId);
+      const otherTasks = prev.filter(t => t.projectId !== activeProjectId);
+
+      const nextActiveTasks = typeof valueOrUpdater === 'function' ? valueOrUpdater(activeTasks) : valueOrUpdater;
+
+      const removed = activeTasks.filter(t => !nextActiveTasks.some(nt => nt.taskId === t.taskId));
       removed.forEach(t => {
         deleteTaskDoc(activeProjectId, t.taskId).catch(err => console.error('タスクの削除に失敗しました', err));
       });
 
-      // 変更があったタスクだけを保存する。全件を毎回保存すると、
-      // 他のメンバーが直前に加えた変更をこちらの古いデータで上書きしてしまうため。
-      next.forEach(t => {
-        const old = prev.find(p => p.taskId === t.taskId);
+      nextActiveTasks.forEach(t => {
+        const old = activeTasks.find(p => p.taskId === t.taskId);
         if (!old || JSON.stringify(old) !== JSON.stringify(t)) {
-          saveTaskDoc(activeProjectId, t).catch(err => {
+          saveTaskDoc(activeProjectId, { ...t, projectId: activeProjectId }).catch(err => {
             console.error('タスクの保存に失敗しました', err);
             alert('タスクの保存に失敗しました。通信状態を確認してもう一度お試しください。');
           });
         }
       });
-      return next;
+
+      return [...otherTasks, ...nextActiveTasks.map(t => ({ ...t, projectId: activeProjectId }))];
     });
   };
 
@@ -216,6 +224,7 @@ export default function App() {
   };
 
   const activeProject = projects.find(p => p.id === activeProjectId);
+  const activeProjectTasks = tasks.filter(t => t.projectId === activeProjectId);
 
   if (!currentUser) return <LoginView onLogin={handleLogin} />;
 
@@ -265,7 +274,7 @@ export default function App() {
               currentUser={currentUser}
               projects={projects}
               setProjects={handleSetProjects}
-              tasks={tasks}
+              tasks={activeProjectTasks}
               setTasks={handleSetTasks}
               groups={groups}
               setGroups={handleSetGroups}
