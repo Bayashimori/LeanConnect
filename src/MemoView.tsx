@@ -33,7 +33,7 @@ export default function MemoView({
       id: `memo_${Date.now()}`,
       projectId: activeProjectId,
       authorId: currentUser.id,
-      authorName: currentUser.name,
+      authorName: currentUser.username || currentUser.name,
       authorIcon: currentUser.avatarUrl,
       authorColor: currentUser.color || 'bg-blue-600',
       content: newMemoContent.trim(),
@@ -127,7 +127,7 @@ export default function MemoView({
             const matchedMember = members.find((m) => m.id === memo.authorId);
             const authorDisplayName = isMe
               ? 'あなた'
-              : matchedMember?.name || memo.authorName || 'メンバー';
+              : matchedMember?.username || matchedMember?.name || memo.authorName || 'メンバー';
             const authorAvatar = isMe
               ? currentUser.avatarUrl
               : matchedMember?.avatarUrl || memo.authorIcon;
@@ -156,7 +156,7 @@ export default function MemoView({
                     <div
                       className={`w-9 h-9 rounded-full ${authorBadgeColor} text-white font-black text-sm flex items-center justify-center shadow-xs`}
                     >
-                      {(authorDisplayName === 'あなた' ? currentUser.name : authorDisplayName).charAt(0)}
+                      {(authorDisplayName === 'あなた' ? (currentUser.username || currentUser.name) : authorDisplayName).charAt(0)}
                     </div>
                   )}
                 </div>
@@ -227,7 +227,6 @@ export default function MemoView({
                       }`}
                       title="リアクションを追加"
                     >
-                      {/* <span className="text-sm leading-none">😀</span> */}
                       <span className="text-[11px] leading-none font-extrabold">＋</span>
                     </button>
                   </div>

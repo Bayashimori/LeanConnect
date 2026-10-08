@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 import type { Project, Task, Group, Expense, Memo, Member, User, ConfirmOptions } from './types';
-import { memberIdLabel, memberDisplayLabel } from './types';
+import { memberDisplayLabel } from './types';
 import PrepGanttView from './PrepGanttView';
 import DayTimelineView from './DayTimelineView';
 import BudgetView from './BudgetView';
@@ -59,8 +59,7 @@ export default function ProjectManagerView({
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  // selectedTaskを独立したstateとして固定で持たず、常にtasksから探し直すことで
-  // 他端末の更新(onSnapshot経由)が即座に反映されるようにする。
+
   const selectedTask = useMemo(
     () => (selectedTaskId ? tasks.find(t => t.taskId === selectedTaskId) || null : null),
     [tasks, selectedTaskId]
@@ -331,7 +330,6 @@ export default function ProjectManagerView({
     });
 
     setTasks(tasks.map(t => t.taskId === selectedTask.taskId ? updated : t));
-    // selectedTaskはtasksから自動的に導出されるので、ここで手動更新する必要はない
   };
 
   const handleHandover = (task: Task) => {
@@ -345,8 +343,9 @@ export default function ProjectManagerView({
     const nextAssignee = task.assignees[nextIndex];
 
     setTasks(tasks.map(t => t.taskId === task.taskId ? { ...t, currentId: nextAssignee } : t));
-    // selectedTaskはtasksから自動導出されるため、ここでの手動同期は不要
   };
+
+  const currentUserDisplayName = currentUser.username || currentUser.name;
 
   return (
     <div className="flex-1 flex flex-col md:flex-row h-full bg-white relative overflow-hidden font-sans">
@@ -410,12 +409,12 @@ export default function ProjectManagerView({
                   <img src={currentUser.avatarUrl} alt="avatar" className="w-10 h-10 rounded-full border object-cover" />
                 ) : (
                   <div className={`w-10 h-10 rounded-full ${currentUser.color || 'bg-blue-600'} text-white font-bold flex items-center justify-center text-sm shadow-xs`}>
-                    {currentUser.name.charAt(0)}
+                    {currentUserDisplayName.charAt(0)}
                   </div>
                 )}
               </div>
               <div className="flex-1 overflow-hidden">
-                <p className="font-extrabold text-sm text-gray-800 truncate group-hover:text-blue-600 transition-colors">{currentUser.name}</p>
+                <p className="font-extrabold text-sm text-gray-800 truncate group-hover:text-blue-600 transition-colors">{currentUserDisplayName}</p>
                 <p className="text-[11px] text-gray-400 font-medium truncate">プロフィール設定</p>
               </div>
             </button>
@@ -442,7 +441,7 @@ export default function ProjectManagerView({
                   <img src={currentUser.avatarUrl} alt="avatar" className="w-8 h-8 rounded-full border object-cover" />
                 ) : (
                   <div className={`w-8 h-8 rounded-full ${currentUser.color || 'bg-blue-600'} text-white font-bold flex items-center justify-center text-xs shadow-xs`}>
-                    {currentUser.name.charAt(0)}
+                    {currentUserDisplayName.charAt(0)}
                   </div>
                 )}
               </button>
@@ -874,10 +873,10 @@ export default function ProjectManagerView({
                   {selectedTask.assignees?.map((uid) => {
                     const member = projectMembers.find(m => m.id === uid);
                     const colorClass = member ? member.color : 'bg-gray-400';
+                    const memberName = member ? (member.username || member.name) : '不明なメンバー';
                     return (
                       <span key={uid} className={`${colorClass} text-white px-2.5 py-1 rounded-full flex items-center justify-center text-xs font-bold shadow-sm`}>
-                        {member?.name || '不明なメンバー'}
-                        {member && <span className="ml-1 font-normal opacity-80">{memberIdLabel(member)}</span>}
+                        {memberName}
                         {project.status === 'active' && (
                           <button onClick={() => updateSelectedTask({ assignees: selectedTask.assignees?.filter(a => a !== uid) })} className="ml-1.5 text-white hover:text-red-200">&times;</button>
                         )}
