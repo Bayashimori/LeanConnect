@@ -5,7 +5,7 @@ import LoginView from './LoginView';
 import HomeView from './HomeView';
 import ProjectManagerView from './ProjectManagerView';
 import ProfileView from './ProfileView';
-import { auth, signOut, onAuthStateChanged } from './firebase';
+import { auth, signOut } from './firebase';
 import { 
   subscribeUserProjects, 
   subscribeProjectData, 
@@ -20,6 +20,8 @@ import {
   saveMemoDoc,
   deleteMemoDoc
 } from './firestoreService';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from './firebase';
 
 const STORAGE_KEY_USER = 'lean-connect-user';
 
@@ -37,6 +39,7 @@ export default function App() {
 
   const [groups, setGroups] = useState<Group[]>(initialGroups);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [allTasks, setAllTasks] = useState<Record<string, Task[]>>({});
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [memos, setMemos] = useState<Memo[]>(initialMemos);
   const [members, setMembers] = useState<Member[]>(initialMembers);
@@ -46,51 +49,80 @@ export default function App() {
   const closeConfirm = () => setConfirmState(prev => prev ? { ...prev, isOpen: false } : null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (!firebaseUser) {
-        setCurrentUser(null);
-        localStorage.removeItem(STORAGE_KEY_USER);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
     if (!currentUser) return;
     const unsubscribe = subscribeUserProjects(currentUser.id, (loadedProjects) => {
       setProjects(loadedProjects);
+      if (!loadedProjects.length) {
+        setAllTasks({});
+      }
     });
     return () => unsubscribe();
   }, [currentUser]);
 
-  // すべての所有・参加プロジェクトのタスクデータを一元的に自動取得・同期
+  // すべての所属プロジェクトのタスクを常に購読してホーム画面用の進捗計算に反映する
   useEffect(() => {
-    if (!projects || projects.length === 0) return;
+    if (!projects.length) return;
 
-    const unsubscribes = projects.map(project => {
-      return subscribeProjectData(project.id, {
-        setTasks: (updater) => {
-          setTasks(prev => {
-            const currentProjectTasks = prev.filter(t => t.projectId !== project.id);
-            const projectOldTasks = prev.filter(t => t.projectId === project.id);
-            const newProjectTasks: Task[] = typeof updater === 'function' ? (updater as (prev: Task[]) => Task[])(projectOldTasks) : updater;
-            
-            // projectIdが未設定の場合は補完
-            const fixedProjectTasks = newProjectTasks.map((t: Task) => ({ ...t, projectId: project.id }));
-            return [...currentProjectTasks, ...fixedProjectTasks];
+    const unsubs = projects.map(project => {
+      const tasksRef = collection(db, 'projects', project.id, 'tasks');
+      return onSnapshot(tasksRef, (snap) => {
+        const projectTasks: Task[] = [];
+        snap.forEach((d) => {
+          const data = d.data();
+          projectTasks.push({
+            taskId: d.id,
+            projectId: project.id,
+            taskMode: data.taskMode || 'prep',
+            taskName: data.taskName || '',
+            taskStatus: data.taskStatus || 'active',
+            needHelp: !!data.needHelp,
+            group: data.group || '',
+            startDate: data.startDate || '',
+            endDate: data.endDate || '',
+            description: data.description || '',
+            taskType: data.taskType,
+            startTime: data.startTime,
+            endTime: data.endTime,
+            currentId: data.currentId,
+            color: data.color || 'bg-blue-500',
+            assignees: data.assignees || [],
+            remind: data.remind,
+            createdAt: data.createdAt?.toMillis?.() || data.createdAt || Date.now()
           });
-        },
-        setGroups,
-        setExpenses,
-        setMemos,
-        setMembers
+        });
+
+        setAllTasks(prev => ({
+          ...prev,
+          [project.id]: projectTasks
+        }));
       });
     });
 
     return () => {
-      unsubscribes.forEach(unsub => unsub());
+      unsubs.forEach(unsub => unsub());
     };
   }, [projects]);
+
+  useEffect(() => {
+    if (!activeProjectId) return;
+
+    const unsubscribe = subscribeProjectData(activeProjectId, {
+      setTasks,
+      setGroups,
+      setExpenses,
+      setMemos,
+      setMembers
+    });
+
+    return () => {
+      unsubscribe();
+      setTasks([]);
+      setGroups(initialGroups);
+      setExpenses(initialExpenses);
+      setMemos(initialMemos);
+      setMembers(initialMembers);
+    };
+  }, [activeProjectId]);
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
@@ -113,19 +145,24 @@ export default function App() {
       });
 
       const removed = prev.filter(p => !processedNext.some(np => np.id === p.id));
-      removed.forEach(p => {
-        deleteProjectDoc(p.id).catch(err => console.error('プロジェクトの削除に失敗しました', err));
-      });
-
-      processedNext.forEach(p => {
-        const old = prev.find(op => op.id === p.id);
-        if (!old || JSON.stringify(old) !== JSON.stringify(p)) {
-          saveProject(p).catch(err => {
-            console.error('プロジェクトの保存に失敗しました', err);
-            alert('プロジェクトの保存に失敗しました。通信状態を確認してもう一度お試しください。');
-          });
+      removed.forEach(async (p) => {
+        try {
+          await deleteProjectDoc(p.id);
+        } catch (error) {
+          console.error("プロジェクト削除エラー:", error);
+          alert(error instanceof Error ? error.message : "プロジェクトの削除に失敗しました。");
         }
       });
+
+      processedNext.forEach(async (p) => {
+        try {
+          await saveProject(p);
+        } catch (error) {
+          console.error("プロジェクト保存エラー:", error);
+          alert(error instanceof Error ? error.message : "プロジェクトの保存に失敗しました。");
+        }
+      });
+
       return processedNext;
     });
   };
@@ -133,27 +170,28 @@ export default function App() {
   const handleSetTasks: React.Dispatch<React.SetStateAction<Task[]>> = (valueOrUpdater) => {
     if (!activeProjectId) return;
     setTasks(prev => {
-      const activeTasks = prev.filter(t => t.projectId === activeProjectId);
-      const otherTasks = prev.filter(t => t.projectId !== activeProjectId);
+      const next = typeof valueOrUpdater === 'function' ? valueOrUpdater(prev) : valueOrUpdater;
+      const removed = prev.filter(t => !next.some(nt => nt.taskId === t.taskId));
 
-      const nextActiveTasks = typeof valueOrUpdater === 'function' ? valueOrUpdater(activeTasks) : valueOrUpdater;
-
-      const removed = activeTasks.filter(t => !nextActiveTasks.some(nt => nt.taskId === t.taskId));
-      removed.forEach(t => {
-        deleteTaskDoc(activeProjectId, t.taskId).catch(err => console.error('タスクの削除に失敗しました', err));
-      });
-
-      nextActiveTasks.forEach(t => {
-        const old = activeTasks.find(p => p.taskId === t.taskId);
-        if (!old || JSON.stringify(old) !== JSON.stringify(t)) {
-          saveTaskDoc(activeProjectId, { ...t, projectId: activeProjectId }).catch(err => {
-            console.error('タスクの保存に失敗しました', err);
-            alert('タスクの保存に失敗しました。通信状態を確認してもう一度お試しください。');
-          });
+      removed.forEach(async (t) => {
+        try {
+          await deleteTaskDoc(activeProjectId, t.taskId);
+        } catch (error) {
+          console.error("タスク削除エラー:", error);
+          alert(error instanceof Error ? error.message : "タスクの削除に失敗しました。");
         }
       });
 
-      return [...otherTasks, ...nextActiveTasks.map(t => ({ ...t, projectId: activeProjectId }))];
+      next.forEach(async (t) => {
+        try {
+          await saveTaskDoc(activeProjectId, t);
+        } catch (error) {
+          console.error("タスク保存エラー:", error);
+          alert(error instanceof Error ? error.message : "タスクの保存に失敗しました。");
+        }
+      });
+
+      return next;
     });
   };
 
@@ -162,19 +200,25 @@ export default function App() {
     setGroups(prev => {
       const next = typeof valueOrUpdater === 'function' ? valueOrUpdater(prev) : valueOrUpdater;
       const removed = prev.filter(g => !next.some(ng => ng.id === g.id));
-      removed.forEach(g => {
-        deleteGroupDoc(activeProjectId, g.id).catch(err => console.error('グループの削除に失敗しました', err));
-      });
 
-      next.forEach(g => {
-        const old = prev.find(p => p.id === g.id);
-        if (!old || JSON.stringify(old) !== JSON.stringify(g)) {
-          saveGroupDoc(activeProjectId, g).catch(err => {
-            console.error('グループの保存に失敗しました', err);
-            alert('グループの保存に失敗しました。通信状態を確認してもう一度お試しください。');
-          });
+      removed.forEach(async (g) => {
+        try {
+          await deleteGroupDoc(activeProjectId, g.id);
+        } catch (error) {
+          console.error("グループ削除エラー:", error);
+          alert(error instanceof Error ? error.message : "グループの削除に失敗しました。");
         }
       });
+
+      next.forEach(async (g) => {
+        try {
+          await saveGroupDoc(activeProjectId, g);
+        } catch (error) {
+          console.error("グループ保存エラー:", error);
+          alert(error instanceof Error ? error.message : "グループの保存に失敗しました。");
+        }
+      });
+
       return next;
     });
   };
@@ -184,19 +228,25 @@ export default function App() {
     setExpenses(prev => {
       const next = typeof valueOrUpdater === 'function' ? valueOrUpdater(prev) : valueOrUpdater;
       const removed = prev.filter(e => !next.some(ne => ne.id === e.id));
-      removed.forEach(e => {
-        deleteExpenseDoc(activeProjectId, e.id).catch(err => console.error('支出の削除に失敗しました', err));
-      });
 
-      next.forEach(e => {
-        const old = prev.find(p => p.id === e.id);
-        if (!old || JSON.stringify(old) !== JSON.stringify(e)) {
-          saveExpenseDoc(activeProjectId, e).catch(err => {
-            console.error('支出の保存に失敗しました', err);
-            alert('支出の保存に失敗しました。通信状態を確認してもう一度お試しください。');
-          });
+      removed.forEach(async (e) => {
+        try {
+          await deleteExpenseDoc(activeProjectId, e.id);
+        } catch (error) {
+          console.error("経費削除エラー:", error);
+          alert(error instanceof Error ? error.message : "経費の削除に失敗しました。");
         }
       });
+
+      next.forEach(async (e) => {
+        try {
+          await saveExpenseDoc(activeProjectId, e);
+        } catch (error) {
+          console.error("経費保存エラー:", error);
+          alert(error instanceof Error ? error.message : "経費の保存に失敗しました。");
+        }
+      });
+
       return next;
     });
   };
@@ -206,25 +256,33 @@ export default function App() {
     setMemos(prev => {
       const next = typeof valueOrUpdater === 'function' ? valueOrUpdater(prev) : valueOrUpdater;
       const removed = prev.filter(m => !next.some(nm => nm.id === m.id));
-      removed.forEach(m => {
-        deleteMemoDoc(activeProjectId, m.id).catch(err => console.error('メモの削除に失敗しました', err));
-      });
 
-      next.forEach(m => {
-        const old = prev.find(p => p.id === m.id);
-        if (!old || JSON.stringify(old) !== JSON.stringify(m)) {
-          saveMemoDoc(activeProjectId, m).catch(err => {
-            console.error('メモの保存に失敗しました', err);
-            alert('メモの保存に失敗しました。通信状態を確認してもう一度お試しください。');
-          });
+      removed.forEach(async (m) => {
+        try {
+          await deleteMemoDoc(activeProjectId, m.id);
+        } catch (error) {
+          console.error("メモ削除エラー:", error);
+          alert(error instanceof Error ? error.message : "メモの削除に失敗しました。");
         }
       });
+
+      next.forEach(async (m) => {
+        try {
+          await saveMemoDoc(activeProjectId, m);
+        } catch (error) {
+          console.error("メモ保存エラー:", error);
+          alert(error instanceof Error ? error.message : "メモの保存に失敗しました。");
+        }
+      });
+
       return next;
     });
   };
 
   const activeProject = projects.find(p => p.id === activeProjectId);
-  const activeProjectTasks = tasks.filter(t => t.projectId === activeProjectId);
+
+  // ホーム画面表示時は全プロジェクトの統合タスク配列を渡す
+  const homeTasks = Object.values(allTasks).flat();
 
   if (!currentUser) return <LoginView onLogin={handleLogin} />;
 
@@ -243,7 +301,7 @@ export default function App() {
             <HomeView 
               projects={projects}
               setProjects={handleSetProjects}
-              tasks={tasks}
+              tasks={homeTasks}
               members={members}
               setMembers={setMembers}
               onSelectProject={(id, view, mode) => {
@@ -274,7 +332,7 @@ export default function App() {
               currentUser={currentUser}
               projects={projects}
               setProjects={handleSetProjects}
-              tasks={activeProjectTasks}
+              tasks={tasks}
               setTasks={handleSetTasks}
               groups={groups}
               setGroups={handleSetGroups}
