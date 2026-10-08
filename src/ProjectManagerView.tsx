@@ -64,6 +64,10 @@ export default function ProjectManagerView({
     () => (selectedTaskId ? tasks.find(t => t.taskId === selectedTaskId) || null : null),
     [tasks, selectedTaskId]
   );
+  
+  // タスクの編集表示は親Stateを参照し、外部更新も即時に反映する
+  const editingTask = selectedTask;
+
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
 
   const [newTaskName, setNewTaskName] = useState('');
@@ -330,6 +334,12 @@ export default function ProjectManagerView({
     });
 
     setTasks(tasks.map(t => t.taskId === selectedTask.taskId ? updated : t));
+  };
+
+  // 入力時にローカルStateと親Stateを同時に更新するハンドラー
+  const handleEditChange = (updates: Partial<Task>) => {
+    if (!editingTask) return;
+    updateSelectedTask(updates);
   };
 
   const handleHandover = (task: Task) => {
@@ -796,13 +806,13 @@ export default function ProjectManagerView({
       )}
 
       {/* --- タスク詳細・編集・削除モーダル --- */}
-      {selectedTask && (
+      {selectedTask && editingTask && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedTaskId(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden relative max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-lg text-gray-800">タスク編集・詳細</h3>
-                {selectedTask.taskStatus === 'completed' && (
+                {editingTask.taskStatus === 'completed' && (
                   <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold border border-green-200">完了済</span>
                 )}
               </div>
@@ -814,9 +824,9 @@ export default function ProjectManagerView({
                 <label className="block text-sm font-bold text-gray-500 mb-1">タスク名</label>
                 <input 
                   type="text" 
-                  value={selectedTask.taskName} 
+                  value={editingTask.taskName} 
                   disabled={project.status === 'completed'}
-                  onChange={e => updateSelectedTask({ taskName: e.target.value })} 
+                  onChange={e => handleEditChange({ taskName: e.target.value })} 
                   className="w-full border border-gray-300 rounded-xl p-2.5 font-bold text-gray-800 focus:ring-2 focus:ring-blue-500 outline-none text-sm disabled:bg-gray-100" 
                 />
               </div>
@@ -824,9 +834,9 @@ export default function ProjectManagerView({
               <div>
                 <label className="block text-sm font-bold text-gray-500 mb-1">説明</label>
                 <textarea 
-                  value={selectedTask.description || ''} 
+                  value={editingTask.description || ''} 
                   disabled={project.status === 'completed'}
-                  onChange={e => updateSelectedTask({ description: e.target.value })} 
+                  onChange={e => handleEditChange({ description: e.target.value })} 
                   className="w-full border border-gray-200 rounded-xl p-2.5 text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100" 
                   placeholder="説明を入力..." 
                   rows={2} 
@@ -834,13 +844,13 @@ export default function ProjectManagerView({
               </div>
               
               <div className="grid grid-cols-2 gap-4">
-                {selectedTask.taskMode === 'prep' && (
+                {editingTask.taskMode === 'prep' && (
                   <div>
                     <label className="block text-sm font-bold text-gray-500 mb-1">担当グループ</label>
                     <select 
-                      value={selectedTask.group} 
+                      value={editingTask.group} 
                       disabled={project.status === 'completed'}
-                      onChange={e => updateSelectedTask({ group: e.target.value })} 
+                      onChange={e => handleEditChange({ group: e.target.value })} 
                       className="w-full border border-gray-300 rounded-xl p-2 bg-white text-xs font-bold text-gray-800 outline-none disabled:bg-gray-100"
                     >
                       <option value="">(未分類)</option>
@@ -849,20 +859,20 @@ export default function ProjectManagerView({
                   </div>
                 )}
 
-                <div className={selectedTask.taskMode === 'day' ? 'col-span-2' : ''}>
+                <div className={editingTask.taskMode === 'day' ? 'col-span-2' : ''}>
                   <label className="block text-sm font-bold text-gray-500 mb-1">
-                    {selectedTask.taskMode === 'prep' ? '期間・日付' : '時間設定'}
+                    {editingTask.taskMode === 'prep' ? '期間・日付' : '時間設定'}
                   </label>
-                  {selectedTask.taskMode === 'prep' ? (
+                  {editingTask.taskMode === 'prep' ? (
                     <div className="flex flex-col gap-1">
-                      <input type="date" disabled={project.status === 'completed'} value={selectedTask.startDate} onChange={e => updateSelectedTask({ startDate: e.target.value })} className="w-full border border-gray-300 rounded-lg p-1 text-xs font-bold disabled:bg-gray-100" />
-                      <input type="date" disabled={project.status === 'completed'} value={selectedTask.endDate} onChange={e => updateSelectedTask({ endDate: e.target.value })} className="w-full border border-gray-300 rounded-lg p-1 text-xs font-bold disabled:bg-gray-100" />
+                      <input type="date" disabled={project.status === 'completed'} value={editingTask.startDate} onChange={e => handleEditChange({ startDate: e.target.value })} className="w-full border border-gray-300 rounded-lg p-1 text-xs font-bold disabled:bg-gray-100" />
+                      <input type="date" disabled={project.status === 'completed'} value={editingTask.endDate} onChange={e => handleEditChange({ endDate: e.target.value })} className="w-full border border-gray-300 rounded-lg p-1 text-xs font-bold disabled:bg-gray-100" />
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
-                      <input type="time" disabled={project.status === 'completed'} value={selectedTask.startTime || '10:00'} onChange={e => updateSelectedTask({ startTime: e.target.value })} className="flex-1 border-2 border-blue-400 rounded-lg py-1 px-1 text-center text-sm font-extrabold text-blue-600 outline-none bg-white disabled:bg-gray-100" />
+                      <input type="time" disabled={project.status === 'completed'} value={editingTask.startTime || '10:00'} onChange={e => handleEditChange({ startTime: e.target.value })} className="flex-1 border-2 border-blue-400 rounded-lg py-1 px-1 text-center text-sm font-extrabold text-blue-600 outline-none bg-white disabled:bg-gray-100" />
                       <span className="font-bold text-gray-400">〜</span>
-                      <input type="time" disabled={project.status === 'completed'} value={selectedTask.endTime || '12:00'} onChange={e => updateSelectedTask({ endTime: e.target.value })} className="flex-1 border-2 border-blue-400 rounded-lg py-1 px-1 text-center text-sm font-extrabold text-blue-600 outline-none bg-white disabled:bg-gray-100" />
+                      <input type="time" disabled={project.status === 'completed'} value={editingTask.endTime || '12:00'} onChange={e => handleEditChange({ endTime: e.target.value })} className="flex-1 border-2 border-blue-400 rounded-lg py-1 px-1 text-center text-sm font-extrabold text-blue-600 outline-none bg-white disabled:bg-gray-100" />
                     </div>
                   )}
                 </div>
@@ -871,7 +881,7 @@ export default function ProjectManagerView({
               <div>
                 <label className="block text-sm font-bold text-gray-500 mb-1">割り当てメンバー</label>
                 <div className="flex flex-wrap gap-2 items-center bg-gray-50 p-2.5 rounded-xl border border-gray-200 min-h-12">
-                  {selectedTask.assignees?.map((uid) => {
+                  {editingTask.assignees?.map((uid) => {
                     const member = projectMembers.find(m => m.id === uid);
                     const colorClass = member ? member.color : 'bg-gray-400';
                     const memberName = member ? (member.username || member.name) : '不明なメンバー';
@@ -879,7 +889,7 @@ export default function ProjectManagerView({
                       <span key={uid} className={`${colorClass} text-white px-2.5 py-1 rounded-full flex items-center justify-center text-xs font-bold shadow-sm`}>
                         {memberName}
                         {project.status === 'active' && (
-                          <button onClick={() => updateSelectedTask({ assignees: selectedTask.assignees?.filter(a => a !== uid) })} className="ml-1.5 text-white hover:text-red-200">&times;</button>
+                          <button onClick={() => handleEditChange({ assignees: editingTask.assignees?.filter(a => a !== uid) })} className="ml-1.5 text-white hover:text-red-200">&times;</button>
                         )}
                       </span>
                     );
@@ -887,15 +897,15 @@ export default function ProjectManagerView({
                   {project.status === 'active' && (
                     <select 
                       onChange={e => {
-                        if (e.target.value && !selectedTask.assignees?.includes(e.target.value)) {
-                          updateSelectedTask({ assignees: [...(selectedTask.assignees || []), e.target.value] });
+                        if (e.target.value && !editingTask.assignees?.includes(e.target.value)) {
+                          handleEditChange({ assignees: [...(editingTask.assignees || []), e.target.value] });
                         }
                         e.target.value = '';
                       }} 
                       className="text-xs border rounded-lg p-1 bg-white outline-none"
                     >
                       <option value="">＋追加</option>
-                      {projectMembers.filter(m => !selectedTask.assignees?.includes(m.id)).map(m => (
+                      {projectMembers.filter(m => !editingTask.assignees?.includes(m.id)).map(m => (
                         <option key={m.id} value={m.id}>{memberDisplayLabel(m)}</option>
                       ))}
                     </select>
@@ -903,13 +913,13 @@ export default function ProjectManagerView({
                 </div>
               </div>
 
-              {selectedTask.taskMode === 'day' && selectedTask.taskType === 'resident' && (
+              {editingTask.taskMode === 'day' && editingTask.taskType === 'resident' && (
                 <div className="bg-pink-50 p-3 rounded-xl border border-pink-200 flex flex-col gap-2">
                   <p className="text-xs font-bold text-pink-700">📌 常駐タスク引き継ぎ管理</p>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold">現在の担当: {(() => { const cm = projectMembers.find(m => m.id === selectedTask.currentId); return cm ? memberDisplayLabel(cm) : '未割当'; })()}</span>
+                    <span className="text-sm font-bold">現在の担当: {(() => { const cm = projectMembers.find(m => m.id === editingTask.currentId); return cm ? memberDisplayLabel(cm) : '未割当'; })()}</span>
                     {project.status === 'active' && (
-                      <button type="button" onClick={() => handleHandover(selectedTask)} className="bg-pink-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-pink-700 transition-colors cursor-pointer">
+                      <button type="button" onClick={() => handleHandover(editingTask)} className="bg-pink-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-pink-700 transition-colors cursor-pointer">
                         次の担当者へ引き継ぎ &gt;
                       </button>
                     )}
@@ -921,20 +931,20 @@ export default function ProjectManagerView({
                 <div className="mt-2 bg-gray-50 p-4 rounded-xl border border-gray-100 flex flex-col gap-3">
                   <p className="text-sm font-bold text-gray-500 mb-1">クイックアクション</p>
                   <button 
-                    onClick={() => updateSelectedTask({ taskStatus: selectedTask.taskStatus === 'active' ? 'completed' : 'active' })} 
+                    onClick={() => handleEditChange({ taskStatus: editingTask.taskStatus === 'active' ? 'completed' : 'active' })} 
                     className={`w-full py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer ${
-                      selectedTask.taskStatus === 'completed' ? 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-100' : 'bg-green-500 text-white hover:bg-green-600 shadow-sm'
+                      editingTask.taskStatus === 'completed' ? 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-100' : 'bg-green-500 text-white hover:bg-green-600 shadow-sm'
                     }`}
                   >
-                    {selectedTask.taskStatus === 'completed' ? '「未完了」に戻す' : '✓ タスクを完了にする'}
+                    {editingTask.taskStatus === 'completed' ? '「未完了」に戻す' : '✓ タスクを完了にする'}
                   </button>
                   <button 
-                    onClick={() => updateSelectedTask({ needHelp: !selectedTask.needHelp })} 
+                    onClick={() => handleEditChange({ needHelp: !editingTask.needHelp })} 
                     className={`w-full py-2.5 rounded-xl font-bold text-sm transition-colors flex items-center justify-center gap-2 border cursor-pointer ${
-                      selectedTask.needHelp ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' : 'bg-white border-red-300 text-red-500 hover:bg-red-50'
+                      editingTask.needHelp ? 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100' : 'bg-white border-red-300 text-red-500 hover:bg-red-50'
                     }`}
                   >
-                    {selectedTask.needHelp ? 'ヘルプ要請を取り下げる' : '🆘 ヘルプ(SOS)を要請する'}
+                    {editingTask.needHelp ? 'ヘルプ要請を取り下げる' : '🆘 ヘルプ(SOS)を要請する'}
                   </button>
                 </div>
               )}
