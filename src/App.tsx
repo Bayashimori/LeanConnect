@@ -5,7 +5,7 @@ import LoginView from './LoginView';
 import HomeView from './HomeView';
 import ProjectManagerView from './ProjectManagerView';
 import ProfileView from './ProfileView';
-import { auth, signOut } from './firebase';
+import { auth, signOut, onAuthStateChanged } from './firebase';
 import { 
   subscribeUserProjects, 
   subscribeProjectData, 
@@ -45,6 +45,19 @@ export default function App() {
   const requestConfirm = (options: ConfirmOptions) => setConfirmState({ ...options, isOpen: true });
   const closeConfirm = () => setConfirmState(prev => prev ? { ...prev, isOpen: false } : null);
 
+  // Firebase Auth側のログイン状態を監視し、途中でセッションが切れた場合は
+  // アプリ側の状態も確実にログアウトにする(切れたまま操作を続けて
+  // Firestoreへの書き込みが失敗し続ける、といった事態を防ぐため)。
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (!firebaseUser) {
+        setCurrentUser(null);
+        localStorage.removeItem(STORAGE_KEY_USER);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   useEffect(() => {
     if (!currentUser) return;
     const unsubscribe = subscribeUserProjects(currentUser.id, (loadedProjects) => {
@@ -64,13 +77,12 @@ export default function App() {
       setMembers
     });
 
+    // 以前はここで setTasks([]) などを呼び、プロジェクトを離れるたびに
+    // 画面上のタスク等を空にしていたが、これが原因でホームに戻ると
+    // 進捗が0%に見えてしまっていた(各ビュー側で project.id によるフィルタ済みなので
+    // 他プロジェクトのデータが混ざる心配はなく、クリア処理は不要だった)。
     return () => {
       unsubscribe();
-      setTasks([]);
-      setGroups(initialGroups);
-      setExpenses(initialExpenses);
-      setMemos(initialMemos);
-      setMembers(initialMembers);
     };
   }, [activeProjectId]);
 
@@ -95,8 +107,20 @@ export default function App() {
       });
 
       const removed = prev.filter(p => !processedNext.some(np => np.id === p.id));
-      removed.forEach(p => deleteProjectDoc(p.id));
-      processedNext.forEach(p => saveProject(p));
+      removed.forEach(p => {
+        deleteProjectDoc(p.id).catch(err => console.error('プロジェクトの削除に失敗しました', err));
+      });
+
+      // 変更があったプロジェクトだけを保存する(他ユーザーの変更を上書きしないため)
+      processedNext.forEach(p => {
+        const old = prev.find(op => op.id === p.id);
+        if (!old || JSON.stringify(old) !== JSON.stringify(p)) {
+          saveProject(p).catch(err => {
+            console.error('プロジェクトの保存に失敗しました', err);
+            alert('プロジェクトの保存に失敗しました。通信状態を確認してもう一度お試しください。');
+          });
+        }
+      });
       return processedNext;
     });
   };
@@ -106,8 +130,21 @@ export default function App() {
     setTasks(prev => {
       const next = typeof valueOrUpdater === 'function' ? valueOrUpdater(prev) : valueOrUpdater;
       const removed = prev.filter(t => !next.some(nt => nt.taskId === t.taskId));
-      removed.forEach(t => deleteTaskDoc(activeProjectId, t.taskId));
-      next.forEach(t => saveTaskDoc(activeProjectId, t));
+      removed.forEach(t => {
+        deleteTaskDoc(activeProjectId, t.taskId).catch(err => console.error('タスクの削除に失敗しました', err));
+      });
+
+      // 変更があったタスクだけを保存する。全件を毎回保存すると、
+      // 他のメンバーが直前に加えた変更をこちらの古いデータで上書きしてしまうため。
+      next.forEach(t => {
+        const old = prev.find(p => p.taskId === t.taskId);
+        if (!old || JSON.stringify(old) !== JSON.stringify(t)) {
+          saveTaskDoc(activeProjectId, t).catch(err => {
+            console.error('タスクの保存に失敗しました', err);
+            alert('タスクの保存に失敗しました。通信状態を確認してもう一度お試しください。');
+          });
+        }
+      });
       return next;
     });
   };
@@ -117,8 +154,19 @@ export default function App() {
     setGroups(prev => {
       const next = typeof valueOrUpdater === 'function' ? valueOrUpdater(prev) : valueOrUpdater;
       const removed = prev.filter(g => !next.some(ng => ng.id === g.id));
-      removed.forEach(g => deleteGroupDoc(activeProjectId, g.id));
-      next.forEach(g => saveGroupDoc(activeProjectId, g));
+      removed.forEach(g => {
+        deleteGroupDoc(activeProjectId, g.id).catch(err => console.error('グループの削除に失敗しました', err));
+      });
+
+      next.forEach(g => {
+        const old = prev.find(p => p.id === g.id);
+        if (!old || JSON.stringify(old) !== JSON.stringify(g)) {
+          saveGroupDoc(activeProjectId, g).catch(err => {
+            console.error('グループの保存に失敗しました', err);
+            alert('グループの保存に失敗しました。通信状態を確認してもう一度お試しください。');
+          });
+        }
+      });
       return next;
     });
   };
@@ -128,8 +176,19 @@ export default function App() {
     setExpenses(prev => {
       const next = typeof valueOrUpdater === 'function' ? valueOrUpdater(prev) : valueOrUpdater;
       const removed = prev.filter(e => !next.some(ne => ne.id === e.id));
-      removed.forEach(e => deleteExpenseDoc(activeProjectId, e.id));
-      next.forEach(e => saveExpenseDoc(activeProjectId, e));
+      removed.forEach(e => {
+        deleteExpenseDoc(activeProjectId, e.id).catch(err => console.error('支出の削除に失敗しました', err));
+      });
+
+      next.forEach(e => {
+        const old = prev.find(p => p.id === e.id);
+        if (!old || JSON.stringify(old) !== JSON.stringify(e)) {
+          saveExpenseDoc(activeProjectId, e).catch(err => {
+            console.error('支出の保存に失敗しました', err);
+            alert('支出の保存に失敗しました。通信状態を確認してもう一度お試しください。');
+          });
+        }
+      });
       return next;
     });
   };
@@ -139,8 +198,19 @@ export default function App() {
     setMemos(prev => {
       const next = typeof valueOrUpdater === 'function' ? valueOrUpdater(prev) : valueOrUpdater;
       const removed = prev.filter(m => !next.some(nm => nm.id === m.id));
-      removed.forEach(m => deleteMemoDoc(activeProjectId, m.id));
-      next.forEach(m => saveMemoDoc(activeProjectId, m));
+      removed.forEach(m => {
+        deleteMemoDoc(activeProjectId, m.id).catch(err => console.error('メモの削除に失敗しました', err));
+      });
+
+      next.forEach(m => {
+        const old = prev.find(p => p.id === m.id);
+        if (!old || JSON.stringify(old) !== JSON.stringify(m)) {
+          saveMemoDoc(activeProjectId, m).catch(err => {
+            console.error('メモの保存に失敗しました', err);
+            alert('メモの保存に失敗しました。通信状態を確認してもう一度お試しください。');
+          });
+        }
+      });
       return next;
     });
   };

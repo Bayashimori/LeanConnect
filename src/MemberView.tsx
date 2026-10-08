@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Member, Task, Group, Project, ConfirmOptions, User } from './types';
+import { memberIdLabel } from './types';
 import { findUserByEmail } from './firestoreService';
 
 type MemberViewProps = {
@@ -109,7 +110,7 @@ export default function MemberView({
   };
 
   const showMemberTasks = (member: Member) => {
-    const mTasks = tasks.filter(t => t.assignees?.includes(member.name) || t.currentId === member.name);
+    const mTasks = tasks.filter(t => t.assignees?.includes(member.id) || t.currentId === member.id);
     setSelectedMemberTasks({ member, tasks: mTasks });
   };
 
@@ -150,9 +151,10 @@ export default function MemberView({
                       {m.name.charAt(0)}
                     </div>
                   )}
-                  <span className="font-bold text-gray-800 text-base">
-                    {m.name}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-gray-800 text-base">{m.name}</span>
+                    <span className="text-xs text-gray-400 font-mono">{memberIdLabel(m)}</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={() => showMemberTasks(m)} className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl transition-colors cursor-pointer">

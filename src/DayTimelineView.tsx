@@ -1,14 +1,16 @@
 import { useMemo, useCallback } from 'react';
-import type { Task } from './types';
+import type { Task, Member } from './types';
+import { memberIdLabel } from './types';
 
 type DayTimelineViewProps = {
   tasks: Task[];
   timeSlots: string[];
+  members: Member[];
   onSelectTask: (task: Task) => void;
   onHandover: (task: Task) => void;
 };
 
-export default function DayTimelineView({ tasks, timeSlots, onSelectTask, onHandover }: DayTimelineViewProps) {
+export default function DayTimelineView({ tasks, timeSlots, members, onSelectTask, onHandover }: DayTimelineViewProps) {
   
   const getRowByTimeString = useCallback((timeStr?: string, isEnd = false) => {
     if (!timeStr || timeSlots.length === 0) return 2;
@@ -147,7 +149,7 @@ export default function DayTimelineView({ tasks, timeSlots, onSelectTask, onHand
 
                 {isResident && (
                   <div className="pt-2 border-t border-white/20 flex justify-between items-center text-xs bg-black/10 px-2 py-1 rounded">
-                    <span>担当: <strong className="underline">{t.currentId || '未割当'}</strong></span>
+                    <span>担当: {(() => { const cm = members.find(m => m.id === t.currentId); return cm ? (<><strong className="underline">{cm.name}</strong><span className="ml-1 text-[10px] opacity-80">{memberIdLabel(cm)}</span></>) : <strong className="underline">未割当</strong>; })()}</span>
                     <button 
                       type="button"
                       onClick={(e) => { e.stopPropagation(); onHandover(t); }}

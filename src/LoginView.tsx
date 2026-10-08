@@ -170,7 +170,14 @@ export default function LoginView({ onLogin }: LoginViewProps) {
               </svg>
               Googleアカウントでログイン
             </button>
-            <p className="text-[11px] text-gray-400">ログインすることで利用規約に同意したものとみなされます</p>
+            <p className="text-[11px] text-gray-400">
+              ログインすることで
+              <a href={`${import.meta.env.BASE_URL}terms.html`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline mx-0.5">利用規約</a>
+              に同意したものとみなされます
+            </p>
+            <p className="text-[11px] text-gray-400 -mt-3">
+              <a href={`${import.meta.env.BASE_URL}privacy.html`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">プライバシーポリシー</a>
+            </p>
           </div>
         ) : (
           <form onSubmit={handleCompleteRegistration} className="w-full flex flex-col gap-4 text-left">

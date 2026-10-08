@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { Project, Task, Expense, Member } from './types';
+import { memberIdLabel } from './types';
 
 type RetrospectiveViewProps = {
   project: Project;
@@ -20,7 +21,7 @@ export default function RetrospectiveView({ project, tasks, expenses, members, o
 
   const memberContributions = useMemo(() => {
     return members.map(m => {
-      const assigned = tasks.filter(t => t.assignees?.includes(m.name) || t.currentId === m.name);
+      const assigned = tasks.filter(t => t.assignees?.includes(m.id) || t.currentId === m.id);
       const completed = assigned.filter(t => t.taskStatus === 'completed');
       return { member: m, total: assigned.length, completed: completed.length };
     }).sort((a, b) => b.completed - a.completed);
@@ -81,6 +82,7 @@ export default function RetrospectiveView({ project, tasks, expenses, members, o
                 </div>
                 <div className="flex-1">
                   <p className="font-bold text-gray-800">{mc.member.name}</p>
+                  <p className="text-xs text-gray-400 font-mono">{memberIdLabel(mc.member)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs font-bold text-gray-500">完了タスク</p>

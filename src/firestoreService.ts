@@ -8,10 +8,16 @@ import {
   onSnapshot,
   query,
   where,
-  serverTimestamp
+  serverTimestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Project, Task, Group, Expense, Memo, Member, User } from './types';
+import { isDemoMode, buildDemoData } from './demoData';
+
+// セッション開始時に一度だけ生成して使い回す。呼び出すたびに生成すると
+// 基準時刻が少しずつズレて、画面ごとに表示が微妙に変わってしまうため。
+const demo = isDemoMode ? buildDemoData() : null;
 
 const sanitizeData = <T extends Record<string, unknown>>(data: T): Record<string, unknown> => {
   const result: Record<string, unknown> = {};
@@ -30,6 +36,7 @@ const sanitizeData = <T extends Record<string, unknown>>(data: T): Record<string
 
 // ==================== Users ====================
 export const getUserDoc = async (userId: string): Promise<User | null> => {
+  if (isDemoMode) return null;
   const docRef = doc(db, 'users', userId);
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) return null;
@@ -46,6 +53,7 @@ export const getUserDoc = async (userId: string): Promise<User | null> => {
 };
 
 export const saveUserDoc = async (user: User) => {
+  if (isDemoMode) return;
   const docRef = doc(db, 'users', user.id);
   const data = sanitizeData({
     name: user.name,
@@ -60,6 +68,7 @@ export const saveUserDoc = async (user: User) => {
 };
 
 export const findUserByEmail = async (email: string): Promise<User | null> => {
+  if (isDemoMode) return null;
   const cleanEmail = email.trim().toLowerCase();
   if (!cleanEmail) return null;
   const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
@@ -79,6 +88,10 @@ export const findUserByEmail = async (email: string): Promise<User | null> => {
 
 // ==================== Projects ====================
 export const subscribeUserProjects = (userId: string, callback: (projects: Project[]) => void) => {
+  if (isDemoMode && demo) {
+    callback([demo.project]);
+    return () => {};
+  }
   const q = query(
     collection(db, 'projects'),
     where('memberIds', 'array-contains', userId)
@@ -103,6 +116,7 @@ export const subscribeUserProjects = (userId: string, callback: (projects: Proje
 };
 
 export const saveProject = async (project: Project) => {
+  if (isDemoMode) return;
   const docRef = doc(db, 'projects', project.id);
   const data = sanitizeData({
     name: project.name,
@@ -116,6 +130,22 @@ export const saveProject = async (project: Project) => {
 };
 
 export const deleteProjectDoc = async (projectId: string) => {
+  if (isDemoMode) return;
+
+  // プロジェクト本体を消すだけではtasks/groups/expenses/memosの
+  // サブコレクションはFirestore上に残り続けてしまうため、先に配下を
+  // すべて削除してから本体を削除する。
+  // (バッチは1回500件までのため、現実的な規模のプロジェクトを想定した実装)
+  const subcollections = ['tasks', 'groups', 'expenses', 'memos'];
+  for (const sub of subcollections) {
+    const snap = await getDocs(collection(db, 'projects', projectId, sub));
+    if (!snap.empty) {
+      const batch = writeBatch(db);
+      snap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  }
+
   await deleteDoc(doc(db, 'projects', projectId));
 };
 
@@ -130,6 +160,15 @@ export const subscribeProjectData = (
     setMembers: (members: Member[]) => void;
   }
 ) => {
+  if (isDemoMode && demo) {
+    callbacks.setTasks(demo.tasks);
+    callbacks.setGroups(demo.groups);
+    callbacks.setExpenses(demo.expenses);
+    callbacks.setMemos(demo.memos);
+    callbacks.setMembers(demo.members);
+    return () => {};
+  }
+
   const projectDocRef = doc(db, 'projects', projectId);
 
   const unsubTasks = onSnapshot(collection(projectDocRef, 'tasks'), (snap) => {
@@ -224,6 +263,7 @@ export const subscribeProjectData = (
         id: uid,
         projectId,
         name: uData?.name || `メンバー (${uid.slice(0, 5)})`,
+        username: uData?.username || undefined,
         avatarUrl: uData?.avatarUrl || undefined,
         color: uData?.color || colors[index % colors.length]
       } as Member;
@@ -243,6 +283,7 @@ export const subscribeProjectData = (
 };
 
 export const saveTaskDoc = async (projectId: string, task: Task) => {
+  if (isDemoMode) return;
   const docRef = doc(db, 'projects', projectId, 'tasks', task.taskId);
   const data = sanitizeData({
     ...task,
@@ -252,10 +293,12 @@ export const saveTaskDoc = async (projectId: string, task: Task) => {
 };
 
 export const deleteTaskDoc = async (projectId: string, taskId: string) => {
+  if (isDemoMode) return;
   await deleteDoc(doc(db, 'projects', projectId, 'tasks', taskId));
 };
 
 export const saveGroupDoc = async (projectId: string, group: Group) => {
+  if (isDemoMode) return;
   const docRef = doc(db, 'projects', projectId, 'groups', group.id);
   const data = sanitizeData({
     ...group,
@@ -265,10 +308,12 @@ export const saveGroupDoc = async (projectId: string, group: Group) => {
 };
 
 export const deleteGroupDoc = async (projectId: string, groupId: string) => {
+  if (isDemoMode) return;
   await deleteDoc(doc(db, 'projects', projectId, 'groups', groupId));
 };
 
 export const saveExpenseDoc = async (projectId: string, expense: Expense) => {
+  if (isDemoMode) return;
   const docRef = doc(db, 'projects', projectId, 'expenses', expense.id);
   const data = sanitizeData({
     ...expense,
@@ -278,10 +323,12 @@ export const saveExpenseDoc = async (projectId: string, expense: Expense) => {
 };
 
 export const deleteExpenseDoc = async (projectId: string, expenseId: string) => {
+  if (isDemoMode) return;
   await deleteDoc(doc(db, 'projects', projectId, 'expenses', expenseId));
 };
 
 export const saveMemoDoc = async (projectId: string, memo: Memo) => {
+  if (isDemoMode) return;
   const docRef = doc(db, 'projects', projectId, 'memos', memo.id);
   const data = sanitizeData({
     ...memo,
@@ -291,5 +338,6 @@ export const saveMemoDoc = async (projectId: string, memo: Memo) => {
 };
 
 export const deleteMemoDoc = async (projectId: string, memoId: string) => {
+  if (isDemoMode) return;
   await deleteDoc(doc(db, 'projects', projectId, 'memos', memoId));
 };

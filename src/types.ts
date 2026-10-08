@@ -50,9 +50,9 @@ export type Task = {
   taskType?: 'resident' | 'individual';
   startTime?: string;
   endTime?: string;
-  currentId?: string;
+  currentId?: string; // 担当者のユーザーID(uid)。表示名ではない(同姓同名対策)
   color: string;
-  assignees?: string[];
+  assignees?: string[]; // 割り当てメンバーのユーザーID(uid)の配列。表示名ではない
   remind?: string;
   createdAt?: number;
 };
@@ -90,6 +90,7 @@ export type Member = {
   id: string;
   projectId: string;
   name: string;
+  username?: string; // @ユーザー名(メールアドレスの@より前)。同姓同名の見分け用
   avatarUrl?: string;
   color: string;
   isMe?: boolean;
@@ -115,3 +116,11 @@ export const NAV_ITEMS = [
   { id: 'budget', label: '予算管理', iconPath: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
   { id: 'memo', label: '共有メモ', iconPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2" }
 ];
+
+// 同姓同名のメンバーを見分けるための表示用ID。
+// @ユーザー名があればそれを、なければユーザーID(uid)の先頭5文字を使う。
+export const memberIdLabel = (m: Member) =>
+  m.username ? `@${m.username}` : `#${m.id.slice(0, 5)}`;
+
+// 「名前 (@ユーザー名)」の形式の表示文字列
+export const memberDisplayLabel = (m: Member) => `${m.name} (${memberIdLabel(m)})`;

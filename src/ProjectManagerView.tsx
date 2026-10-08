@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 import type { Project, Task, Group, Expense, Memo, Member, User, ConfirmOptions } from './types';
+import { memberIdLabel, memberDisplayLabel } from './types';
 import PrepGanttView from './PrepGanttView';
 import DayTimelineView from './DayTimelineView';
 import BudgetView from './BudgetView';
@@ -57,7 +58,13 @@ export default function ProjectManagerView({
 
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  // selectedTaskを独立したstateとして固定で持たず、常にtasksから探し直すことで
+  // 他端末の更新(onSnapshot経由)が即座に反映されるようにする。
+  const selectedTask = useMemo(
+    () => (selectedTaskId ? tasks.find(t => t.taskId === selectedTaskId) || null : null),
+    [tasks, selectedTaskId]
+  );
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
 
   const [newTaskName, setNewTaskName] = useState('');
@@ -229,7 +236,7 @@ export default function ProjectManagerView({
     setNewTaskStartTime('10:00');
     setNewTaskEndTime('12:00');
     setNewTaskType('resident');
-    setNewTaskAssignees(projectMembers.map(mem => mem.name).slice(0, 2));
+    setNewTaskAssignees(projectMembers.map(mem => mem.id).slice(0, 2));
     setIsTaskModalOpen(true);
   };
 
@@ -293,7 +300,7 @@ export default function ProjectManagerView({
       isDanger: true,
       onConfirm: () => {
         setTasks(tasks.filter(t => t.taskId !== selectedTask.taskId));
-        setSelectedTask(null);
+        setSelectedTaskId(null);
       }
     });
   };
@@ -324,7 +331,7 @@ export default function ProjectManagerView({
     });
 
     setTasks(tasks.map(t => t.taskId === selectedTask.taskId ? updated : t));
-    setSelectedTask(updated);
+    // selectedTaskはtasksから自動的に導出されるので、ここで手動更新する必要はない
   };
 
   const handleHandover = (task: Task) => {
@@ -338,9 +345,7 @@ export default function ProjectManagerView({
     const nextAssignee = task.assignees[nextIndex];
 
     setTasks(tasks.map(t => t.taskId === task.taskId ? { ...t, currentId: nextAssignee } : t));
-    if (selectedTask && selectedTask.taskId === task.taskId) {
-      setSelectedTask({ ...selectedTask, currentId: nextAssignee });
-    }
+    // selectedTaskはtasksから自動導出されるため、ここでの手動同期は不要
   };
 
   return (
@@ -563,7 +568,7 @@ export default function ProjectManagerView({
                     tasks={projectTasks}
                     groups={projectGroups}
                     dates={dates}
-                    onSelectTask={setSelectedTask}
+                    onSelectTask={(task) => setSelectedTaskId(task.taskId)}
                     onSelectGroup={setSelectedGroup}
                     onAddGroup={() => setIsGroupModalOpen(true)}
                     dateRowRefs={dateRowRefs}
@@ -573,7 +578,8 @@ export default function ProjectManagerView({
                   <DayTimelineView 
                     tasks={projectTasks}
                     timeSlots={dynamicTimeSlots}
-                    onSelectTask={setSelectedTask}
+                    members={projectMembers}
+                    onSelectTask={(task) => setSelectedTaskId(task.taskId)}
                     onHandover={handleHandover}
                   />
                 )}
@@ -791,7 +797,7 @@ export default function ProjectManagerView({
 
       {/* --- タスク詳細・編集・削除モーダル --- */}
       {selectedTask && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedTask(null)}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedTaskId(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden relative max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
               <div className="flex items-center gap-2">
@@ -800,7 +806,7 @@ export default function ProjectManagerView({
                   <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full font-bold border border-green-200">完了済</span>
                 )}
               </div>
-              <button onClick={() => setSelectedTask(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+              <button onClick={() => setSelectedTaskId(null)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
             </div>
             
             <div className="p-6 flex flex-col gap-4 overflow-y-auto">
@@ -865,14 +871,15 @@ export default function ProjectManagerView({
               <div>
                 <label className="block text-sm font-bold text-gray-500 mb-1">割り当てメンバー</label>
                 <div className="flex flex-wrap gap-2 items-center bg-gray-50 p-2.5 rounded-xl border border-gray-200 min-h-12">
-                  {selectedTask.assignees?.map((name) => {
-                    const member = projectMembers.find(m => m.name === name);
+                  {selectedTask.assignees?.map((uid) => {
+                    const member = projectMembers.find(m => m.id === uid);
                     const colorClass = member ? member.color : 'bg-gray-400';
                     return (
-                      <span key={name} className={`${colorClass} text-white px-2.5 py-1 rounded-full flex items-center justify-center text-xs font-bold shadow-sm`}>
-                        {name}
+                      <span key={uid} className={`${colorClass} text-white px-2.5 py-1 rounded-full flex items-center justify-center text-xs font-bold shadow-sm`}>
+                        {member?.name || '不明なメンバー'}
+                        {member && <span className="ml-1 font-normal opacity-80">{memberIdLabel(member)}</span>}
                         {project.status === 'active' && (
-                          <button onClick={() => updateSelectedTask({ assignees: selectedTask.assignees?.filter(a => a !== name) })} className="ml-1.5 text-white hover:text-red-200">&times;</button>
+                          <button onClick={() => updateSelectedTask({ assignees: selectedTask.assignees?.filter(a => a !== uid) })} className="ml-1.5 text-white hover:text-red-200">&times;</button>
                         )}
                       </span>
                     );
@@ -888,8 +895,8 @@ export default function ProjectManagerView({
                       className="text-xs border rounded-lg p-1 bg-white outline-none"
                     >
                       <option value="">＋追加</option>
-                      {projectMembers.filter(m => !selectedTask.assignees?.includes(m.name)).map(m => (
-                        <option key={m.id} value={m.name}>{m.name}</option>
+                      {projectMembers.filter(m => !selectedTask.assignees?.includes(m.id)).map(m => (
+                        <option key={m.id} value={m.id}>{memberDisplayLabel(m)}</option>
                       ))}
                     </select>
                   )}
@@ -900,7 +907,7 @@ export default function ProjectManagerView({
                 <div className="bg-pink-50 p-3 rounded-xl border border-pink-200 flex flex-col gap-2">
                   <p className="text-xs font-bold text-pink-700">📌 常駐タスク引き継ぎ管理</p>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold">現在の担当: {selectedTask.currentId || '未割当'}</span>
+                    <span className="text-sm font-bold">現在の担当: {(() => { const cm = projectMembers.find(m => m.id === selectedTask.currentId); return cm ? memberDisplayLabel(cm) : '未割当'; })()}</span>
                     {project.status === 'active' && (
                       <button type="button" onClick={() => handleHandover(selectedTask)} className="bg-pink-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-pink-700 transition-colors cursor-pointer">
                         次の担当者へ引き継ぎ &gt;
@@ -933,7 +940,7 @@ export default function ProjectManagerView({
               )}
 
               <div className="mt-4 pt-4 border-t border-gray-100 flex gap-3 shrink-0">
-                <button onClick={() => setSelectedTask(null)} className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">閉じる</button>
+                <button onClick={() => setSelectedTaskId(null)} className="flex-1 py-2.5 border border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors cursor-pointer">閉じる</button>
                 {project.status === 'active' && (
                   <button onClick={handleDeleteTask} className="flex-1 py-2.5 bg-white border border-red-200 text-red-500 font-bold rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-1 cursor-pointer">
                     削除する
