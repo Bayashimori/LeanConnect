@@ -27,32 +27,37 @@ export default function MemberView({
   const [searchQuery, setSearchQuery] = useState('');
   const [, setSelectedMemberTasks] = useState<{member: Member, tasks: Task[]} | null>(null);
 
-  const [, setIsAddPanelOpen] = useState(false);
+  // ▼ 修正: モーダルの開閉フラグのセッターを有効化
+  const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
-  const [, setIsSearching] = useState(false);
-  const [, setMatchedUser] = useState<User | null>(null);
-  const [, setSearchFeedback] = useState<string>('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [matchedUser, setMatchedUser] = useState<User | null>(null);
+  const [searchFeedback, setSearchFeedback] = useState<string>('');
+
+  const resetSearchState = () => {
+    setMatchedUser(null);
+    setSearchFeedback('');
+  };
 
   const handleOpenAddMemberPanel = () => {
     if (isReadOnly) return;
     setNewMemberEmail('');
-    setMatchedUser(null);
-    setSearchFeedback('');
+    resetSearchState();
     setIsAddPanelOpen(true);
   };
 
 
   useEffect(() => {
     const email = newMemberEmail.trim();
-    if (!email || !email.includes('@')) {
-      return;
-    }
+    if (!email || !email.includes('@')) return;
 
     const timer = setTimeout(async () => {
+      const currentEmail = email;
       setIsSearching(true);
       setSearchFeedback('');
       try {
-        const found = await findUserByEmail(email);
+        const found = await findUserByEmail(currentEmail);
+        if (newMemberEmail.trim() !== currentEmail) return;
         if (found) {
           setMatchedUser(found);
           setSearchFeedback('');
@@ -62,15 +67,32 @@ export default function MemberView({
         }
       } catch (error) {
         console.error('ユーザー検索エラー:', error);
-        setSearchFeedback('検索中にエラーが発生しました。');
+        if (newMemberEmail.trim() === currentEmail) {
+          setSearchFeedback('検索中にエラーが発生しました。');
+        }
       } finally {
-        setIsSearching(false);
+        if (newMemberEmail.trim() === currentEmail) {
+          setIsSearching(false);
+        }
       }
     }, 400);
 
     return () => clearTimeout(timer);
   }, [newMemberEmail]);
 
+  // ▼ メンバー追加を実行する処理
+  const handleAddMember = () => {
+    if (!matchedUser) return;
+    const currentMemberIds = project.memberIds || [];
+    if (currentMemberIds.includes(matchedUser.id)) {
+      alert('すでにこのプロジェクトに参加しています。');
+      return;
+    }
+
+    const updatedMemberIds = [...currentMemberIds, matchedUser.id];
+    setProjects(projects.map(p => p.id === activeProjectId ? { ...p, memberIds: updatedMemberIds } : p));
+    setIsAddPanelOpen(false);
+  };
 
   const handleDeleteMember = (member: Member) => {
     if (isReadOnly) return;
@@ -157,11 +179,65 @@ export default function MemberView({
         <div className="absolute bottom-20 md:bottom-8 right-4 md:right-8 z-30">
           <button 
             onClick={handleOpenAddMemberPanel}
-            className="bg-blue-600 hover:bg-blue-700 transition-all text-white font-bold p-4 md:py-3.5 md:px-6 rounded-full shadow-lg flex items-center justify-center gap-2"
+            className="bg-blue-600 hover:bg-blue-700 transition-all text-white font-bold p-4 md:py-3.5 md:px-6 rounded-full shadow-lg flex items-center justify-center gap-2 cursor-pointer"
           >
             <span className="text-xl">+</span>
             <span className="hidden md:inline">メンバー招待</span>
           </button>
+        </div>
+      )}
+
+      {/* ▼ 新規追加: メンバー招待モーダル */}
+      {isAddPanelOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setIsAddPanelOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden p-6 flex flex-col gap-4 animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-extrabold text-lg text-gray-800">メンバー招待</h3>
+              <button onClick={() => setIsAddPanelOpen(false)} className="text-gray-400 hover:text-gray-600 text-2xl cursor-pointer">&times;</button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">メールアドレス</label>
+                <input 
+                  type="email" 
+                  value={newMemberEmail}
+                  onChange={e => setNewMemberEmail(e.target.value)}
+                  placeholder="example@domain.com"
+                  className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-bold"
+                />
+              </div>
+
+              {isSearching && <p className="text-xs text-gray-500">ユーザーを検索中...</p>}
+              {searchFeedback && <p className="text-xs text-red-500 font-bold">{searchFeedback}</p>}
+
+              {matchedUser && (
+                <div className="bg-blue-50 border border-blue-200 p-3 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-xs">
+                      {(matchedUser.username || matchedUser.name).charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-gray-800">{matchedUser.username || matchedUser.name}</p>
+                      <p className="text-[10px] text-gray-500">{matchedUser.email}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-blue-600">見つかりました</span>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t flex gap-3">
+              <button onClick={() => setIsAddPanelOpen(false)} className="flex-1 py-2.5 border border-gray-300 rounded-xl font-bold text-gray-700 hover:bg-gray-50 cursor-pointer">キャンセル</button>
+              <button 
+                onClick={handleAddMember} 
+                disabled={!matchedUser}
+                className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-40 transition-colors shadow-sm cursor-pointer"
+              >
+                追加する
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
