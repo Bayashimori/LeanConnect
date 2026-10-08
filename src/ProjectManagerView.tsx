@@ -346,6 +346,15 @@ export default function ProjectManagerView({
   };
 
   const currentUserDisplayName = currentUser.username || currentUser.name;
+  const currentUserAvatar = currentUser.avatarUrl || currentUser.iconUrl;
+
+  const navMenuItems = [
+    { id: 'gantt', label: 'チャート', iconPath: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" },
+    { id: 'members', label: 'メンバー', iconPath: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
+    { id: 'budget', label: '予算管理', iconPath: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
+    { id: 'memo', label: '共有メモ', iconPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2" },
+    ...(project.status === 'completed' ? [{ id: 'retrospective', label: '振り返り', iconPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" }] : [])
+  ];
 
   return (
     <div className="flex-1 flex flex-col md:flex-row h-full bg-white relative overflow-hidden font-sans">
@@ -354,7 +363,7 @@ export default function ProjectManagerView({
       <aside className="hidden md:flex flex-col w-64 bg-gray-50 border-r border-gray-200 shrink-0 z-20">
         <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 shrink-0">
           <div className="flex items-center overflow-hidden">
-            <button onClick={onBackToHome} className="mr-2 p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors shrink-0 cursor-pointer">
+            <button onClick={onBackToHome} className="mr-2 p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors shrink-0 cursor-pointer" aria-label="ホームへ戻る">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
             </button>
             <span className="font-bold text-lg text-gray-800 truncate" title={project.name}>{project.name}</span>
@@ -372,13 +381,7 @@ export default function ProjectManagerView({
         </div>
         
         <nav className="flex-1 py-6 flex flex-col gap-2 px-4 overflow-y-auto">
-          {[
-            { id: 'gantt', label: 'チャート', iconPath: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" },
-            { id: 'members', label: 'メンバー', iconPath: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
-            { id: 'budget', label: '予算管理', iconPath: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
-            { id: 'memo', label: '共有メモ', iconPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2" },
-            ...(project.status === 'completed' ? [{ id: 'retrospective', label: '振り返り', iconPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" }] : [])
-          ].map(item => {
+          {navMenuItems.map(item => {
             const isActive = currentNav === item.id;
             return (
               <button 
@@ -405,8 +408,8 @@ export default function ProjectManagerView({
               title="プロフィール設定を開く"
             >
               <div className="relative">
-                {currentUser.avatarUrl ? (
-                  <img src={currentUser.avatarUrl} alt="avatar" className="w-10 h-10 rounded-full border object-cover" />
+                {currentUserAvatar ? (
+                  <img src={currentUserAvatar} alt="avatar" className="w-10 h-10 rounded-full border object-cover" />
                 ) : (
                   <div className={`w-10 h-10 rounded-full ${currentUser.color || 'bg-blue-600'} text-white font-bold flex items-center justify-center text-sm shadow-xs`}>
                     {currentUserDisplayName.charAt(0)}
@@ -428,7 +431,7 @@ export default function ProjectManagerView({
         {/* SP用ヘッダー */}
         <header className="md:hidden h-16 border-b border-gray-200 px-4 flex items-center justify-between shrink-0 bg-white z-20">
           <div className="flex items-center text-lg font-bold overflow-hidden">
-            <button onClick={onBackToHome} className="mr-2 p-1.5 rounded-full hover:bg-gray-100 text-gray-500 transition-colors shrink-0">
+            <button onClick={onBackToHome} className="mr-2 p-1.5 rounded-full hover:bg-gray-100 text-gray-500 transition-colors shrink-0" aria-label="ホームへ戻る">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
             </button>
             <span className="truncate max-w-36 font-extrabold">{project.name}</span>
@@ -437,8 +440,8 @@ export default function ProjectManagerView({
           <div className="flex items-center gap-2 shrink-0">
             {onOpenProfile && (
               <button onClick={onOpenProfile} className="cursor-pointer" title="プロフィール設定">
-                {currentUser.avatarUrl ? (
-                  <img src={currentUser.avatarUrl} alt="avatar" className="w-8 h-8 rounded-full border object-cover" />
+                {currentUserAvatar ? (
+                  <img src={currentUserAvatar} alt="avatar" className="w-8 h-8 rounded-full border object-cover" />
                 ) : (
                   <div className={`w-8 h-8 rounded-full ${currentUser.color || 'bg-blue-600'} text-white font-bold flex items-center justify-center text-xs shadow-xs`}>
                     {currentUserDisplayName.charAt(0)}
@@ -484,9 +487,10 @@ export default function ProjectManagerView({
           ) : currentNav === 'memo' ? (
             <MemoView 
               memos={projectMemos} 
-              setMemos={(newMemos: Memo[]) => {
+              setMemos={(newMemos: React.SetStateAction<Memo[]>) => {
+                const resolvedMemos = typeof newMemos === 'function' ? newMemos(memos) : newMemos;
                 const otherMemos = memos.filter(m => m.projectId !== project.id);
-                const updatedMemos = newMemos.map(m => ({ ...m, projectId: project.id }));
+                const updatedMemos = resolvedMemos.map(m => ({ ...m, projectId: project.id }));
                 setMemos([...otherMemos, ...updatedMemos]);
               }} 
               members={projectMembers}
@@ -545,6 +549,7 @@ export default function ProjectManagerView({
                     onClick={handlePrevMonth} 
                     disabled={currentIndex <= 0}
                     className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 cursor-pointer"
+                    aria-label="前月へ"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M15 19l-7-7 7-7" /></svg>
                   </button>
@@ -555,6 +560,7 @@ export default function ProjectManagerView({
                     onClick={handleNextMonth} 
                     disabled={currentIndex >= availableYearMonths.length - 1}
                     className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 cursor-pointer"
+                    aria-label="次月へ"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
                   </button>
@@ -588,6 +594,7 @@ export default function ProjectManagerView({
                     <button 
                       onClick={handleOpenTaskModal}
                       className="bg-blue-600 hover:bg-blue-700 transition-all text-white font-bold p-4 rounded-full shadow-lg flex items-center justify-center gap-2 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
+                      aria-label="タスクの新規作成"
                     >
                       <span className="text-2xl font-light leading-none">＋</span>
                     </button>
@@ -600,13 +607,7 @@ export default function ProjectManagerView({
 
         {/* --- SP用 ボトムナビゲーションバー --- */}
         <nav className="md:hidden h-16 bg-white border-t border-gray-200 flex justify-around items-center text-[10px] text-gray-500 shrink-0 z-40">
-          {[
-            { id: 'gantt', label: 'チャート', iconPath: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" },
-            { id: 'members', label: 'メンバー', iconPath: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" },
-            { id: 'budget', label: '予算管理', iconPath: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" },
-            { id: 'memo', label: '共有メモ', iconPath: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2" },
-            ...(project.status === 'completed' ? [{ id: 'retrospective', label: '振り返り', iconPath: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" }] : [])
-          ].map(item => {
+          {navMenuItems.map(item => {
             const isActive = currentNav === item.id;
             return (
               <button 
@@ -742,7 +743,7 @@ export default function ProjectManagerView({
                 />
               </div>
 
-              {taskMode === 'prep' ? (
+              {taskMode === 'prep' && (
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">グループに割り当て</label>
                   <select 
@@ -754,7 +755,7 @@ export default function ProjectManagerView({
                     {projectGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </div>
-              ) : null}
+              )}
 
               {taskMode === 'prep' ? (
                 <div className="flex items-center gap-2 bg-gray-100 rounded-xl p-3 border border-gray-200">
@@ -769,7 +770,7 @@ export default function ProjectManagerView({
                 </div>
               ) : (
                 <div className="bg-gray-100 rounded-xl p-3 border border-gray-200 flex flex-col gap-2">
-                  <span className="text-xs font-bold text-gray-500 text-center">⏰ アラーム風 時間設定（分単位）</span>
+                  <span className="text-xs font-bold text-gray-500 text-center">⏰ 時間設定</span>
                   <div className="flex items-center justify-center gap-3">
                     <div className="flex flex-col items-center flex-1">
                       <span className="text-[10px] font-bold text-gray-400 mb-1">開始時間</span>
