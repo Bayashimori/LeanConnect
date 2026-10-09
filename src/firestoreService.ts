@@ -16,12 +16,16 @@ import { isDemoMode, demoStore as demo, DEMO_DIRECTORY, DEMO_USER } from './demo
 
 // デモモード用: 開いているプロジェクトのメンバー一覧を画面に反映する関数
 let demoSetMembers: ((members: Member[]) => void) | null = null;
+// デモモード用: 今開いているプロジェクトのID
+let demoActiveProjectId: string | null = null;
+// デモモード用: デモ中に新しく作ったプロジェクト(最初から入っているデモ用プロジェクト以外)
+let demoExtraProjects: Project[] = [];
 
 // デモモード用: プロジェクトのmemberIdsから、メンバー一覧を作り直す
 const buildDemoMembers = (project: Project): Member[] =>
   (project.memberIds || []).flatMap((uid) => {
     const existing = demo?.members.find(m => m.id === uid);
-    if (existing) return [existing];
+    if (existing) return [{ ...existing, projectId: project.id }];
     const u = DEMO_DIRECTORY.find(d => d.id === uid);
     if (!u) return [];
     return [{ id: u.id, projectId: project.id, name: u.name, username: u.username, color: u.color || 'bg-blue-600', isMe: u.id === DEMO_USER.id }];
@@ -132,7 +136,7 @@ export const findUserByEmail = async (email: string): Promise<User | null> => {
 
 export const subscribeUserProjects = (userId: string, callback: (projects: Project[]) => void) => {
   if (isDemoMode && demo) {
-    callback([demo.project]);
+    callback([demo.project, ...demoExtraProjects]);
     return () => {};
   }
   const q = query(
@@ -160,13 +164,20 @@ export const subscribeUserProjects = (userId: string, callback: (projects: Proje
 
 export const saveProject = async (project: Project) => {
   if (isDemoMode) {
-    if (demo && project.id === demo.project.id) {
-      demo.project = project;
-      // 招待・削除でメンバーが変わったら、メンバー一覧も更新する
-      const nextMembers = buildDemoMembers(project);
-      demo.members = nextMembers;
-      // 呼び出し元がReactのstate更新の途中なので、画面への反映は少し後にずらす
-      setTimeout(() => demoSetMembers?.(nextMembers), 0);
+    if (demo) {
+      if (project.id === demo.project.id) {
+        demo.project = project;
+        demo.members = buildDemoMembers(project);
+      } else {
+        // デモ中に新しく作ったプロジェクトも覚えておく
+        demoExtraProjects = upsertById(demoExtraProjects, project, 'id');
+      }
+      // 開いているプロジェクトのメンバーが招待・削除で変わったら、メンバー一覧も更新する
+      if (project.id === demoActiveProjectId) {
+        const nextMembers = buildDemoMembers(project);
+        // 呼び出し元がReactのstate更新の途中なので、画面への反映は少し後にずらす
+        setTimeout(() => demoSetMembers?.(nextMembers), 0);
+      }
     }
     return;
   }
@@ -188,7 +199,16 @@ export const saveProject = async (project: Project) => {
 };
 
 export const deleteProjectDoc = async (projectId: string) => {
-  if (isDemoMode) return;
+  if (isDemoMode) {
+    if (demo) {
+      demoExtraProjects = demoExtraProjects.filter(p => p.id !== projectId);
+      demo.tasks = demo.tasks.filter(t => t.projectId !== projectId);
+      demo.groups = demo.groups.filter(g => g.projectId !== projectId);
+      demo.expenses = demo.expenses.filter(e => e.projectId !== projectId);
+      demo.memos = demo.memos.filter(m => m.projectId !== projectId);
+    }
+    return;
+  }
   try {
     await deleteDoc(doc(db, 'projects', projectId));
    
@@ -208,13 +228,17 @@ export const subscribeProjectData = (
   }
 ) => {
   if (isDemoMode && demo) {
-    callbacks.setTasks(demo.tasks);
-    callbacks.setGroups(demo.groups);
-    callbacks.setExpenses(demo.expenses);
-    callbacks.setMemos(demo.memos);
-    callbacks.setMembers(demo.members);
+    // 開いたプロジェクトのデータだけを渡す
+    // (以前は全プロジェクト分を渡していたため、新しく作ったプロジェクトにデモ用のメモ等が混ざっていた)
+    const project = [demo.project, ...demoExtraProjects].find(p => p.id === projectId);
+    callbacks.setTasks(demo.tasks.filter(t => t.projectId === projectId));
+    callbacks.setGroups(demo.groups.filter(g => g.projectId === projectId));
+    callbacks.setExpenses(demo.expenses.filter(e => e.projectId === projectId));
+    callbacks.setMemos(demo.memos.filter(m => m.projectId === projectId));
+    callbacks.setMembers(project ? buildDemoMembers(project) : []);
+    demoActiveProjectId = projectId;
     demoSetMembers = callbacks.setMembers;
-    return () => { demoSetMembers = null; };
+    return () => { demoSetMembers = null; demoActiveProjectId = null; };
   }
 
   const projectDocRef = doc(db, 'projects', projectId);

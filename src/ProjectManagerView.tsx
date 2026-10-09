@@ -741,7 +741,9 @@ export default function ProjectManagerView({
               memos={projectMemos}
               setMemos={(newMemos: React.SetStateAction<Memo[]>) => {
                 const resolvedMemos =
-                  typeof newMemos === "function" ? newMemos(memos) : newMemos;
+                  // 関数で渡された場合は、このプロジェクトのメモだけを元にする
+                  // (全プロジェクトのメモを渡すと、他のプロジェクトのメモまでこのプロジェクトのものに書き換わってしまう)
+                  typeof newMemos === "function" ? newMemos(projectMemos) : newMemos;
                 const otherMemos = memos.filter(
                   (m) => m.projectId !== project.id,
                 );
