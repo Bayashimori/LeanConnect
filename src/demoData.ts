@@ -1,9 +1,23 @@
 import type { User, Project, Group, Task, Expense, Memo, Member } from './types';
 
+/**
+ * オフラインデモ用のダミーデータ。
+ *
+ * ポイント:
+ * - 日付は「実行した日(now)」からの相対値で計算する(当日の時刻は10:00開場の固定値)。
+ *   固定の日付を入れてしまうと、本番当日が違う日になった瞬間に
+ *   「過去のイベント」や「来週のイベント」に見えてしまうため。
+ * - avatarUrl はすべて未設定にしている。外部画像URLは通信が無いと
+ *   読み込めないため、オフライン前提のデモでは使わない
+ *   (未設定の場合は名前の頭文字によるアイコンが自動で表示される)。
+ * - 保存系の関数(saveTaskDocなど)をデモモードでは何もしない実装に
+ *   差し替える想定なので、ここで作ったデータは「ページを再読み込み
+ *   すれば毎回この状態に戻る」= デモ間のリセットが自動でできる。
+ */
+
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
 const formatDate = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-const formatTime = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
 const addDays = (base: Date, days: number) => {
   const d = new Date(base);
@@ -18,14 +32,8 @@ const addMinutes = (base: Date, minutes: number) => {
 };
 
 
-const roundTo30 = (d: Date) => {
-  const d2 = new Date(d);
-  const m = d2.getMinutes();
-  d2.setMinutes(m < 30 ? 0 : 30, 0, 0);
-  return d2;
-};
-
-
+// VITE_DEMO_MODE=true を .env.local に設定したPCだけがオフラインデモ動作になる。
+// (本番のFirebaseと切り替える唯一のスイッチなので、ここに集約しておく)
 export const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
 
 export const DEMO_PROJECT_ID = 'demo_project_1';
@@ -38,6 +46,20 @@ export const DEMO_USER: User = {
   color: 'bg-blue-600'
 };
 
+// デモ用の「LeanConnectに登録済みのユーザー」一覧。
+// プロジェクトのメンバー5人に加えて、まだ参加していない2人がいるので、
+// デモ中にメールアドレスで検索して「メンバー招待」を実演できる。
+export const DEMO_DIRECTORY: User[] = [
+  DEMO_USER,
+  { id: 'demo_member_2', name: '中村 陽翔', username: 'haruto_n', email: 'haruto@example.com', color: 'bg-purple-600' },
+  { id: 'demo_member_3', name: '吉田 美月', username: 'mitsuki_y', email: 'mitsuki@example.com', color: 'bg-emerald-600' },
+  { id: 'demo_member_4', name: '佐伯 健太', username: 'kenta_s', email: 'kenta@example.com', color: 'bg-orange-500' },
+  { id: 'demo_member_5', name: '大西 さくら', username: 'sakura_o', email: 'sakura@example.com', color: 'bg-pink-500' },
+  // ↓ まだプロジェクトに参加していないユーザー(招待のデモ用)
+  { id: 'demo_guest_1', name: '田中 蓮', username: 'ren_t', email: 'ren@example.com', color: 'bg-indigo-600' },
+  { id: 'demo_guest_2', name: '小林 結衣', username: 'yui_k', email: 'yui@example.com', color: 'bg-cyan-600' }
+];
+
 export function buildDemoData(now: Date = new Date()): {
   project: Project;
   members: Member[];
@@ -46,10 +68,9 @@ export function buildDemoData(now: Date = new Date()): {
   expenses: Expense[];
   memos: Memo[];
 } {
-  const nowRounded = roundTo30(now);
   const today = formatDate(now);
 
-  
+  // ---------------- メンバー ----------------
   const members: Member[] = [
     { id: 'demo_user_me', projectId: DEMO_PROJECT_ID, name: '橋本 奏', username: 'kanade_demo', color: 'bg-blue-600', isMe: true },
     { id: 'demo_member_2', projectId: DEMO_PROJECT_ID, name: '中村 陽翔', username: 'haruto_n', color: 'bg-purple-600' },
@@ -58,7 +79,7 @@ export function buildDemoData(now: Date = new Date()): {
     { id: 'demo_member_5', projectId: DEMO_PROJECT_ID, name: '大西 さくら', username: 'sakura_o', color: 'bg-pink-500' }
   ];
 
-  
+  // ---------------- プロジェクト ----------------
   const project: Project = {
     id: DEMO_PROJECT_ID,
     name: '文化祭「旧校舎のおばけ屋敷」',
@@ -69,13 +90,14 @@ export function buildDemoData(now: Date = new Date()): {
     createdAt: addDays(now, -14).getTime()
   };
 
-    const groups: Group[] = [
+  // ---------------- グループ(準備タスク用) ----------------
+  const groups: Group[] = [
     { id: 'demo_group_plan', projectId: DEMO_PROJECT_ID, name: '企画・広報' },
     { id: 'demo_group_props', projectId: DEMO_PROJECT_ID, name: '小道具制作' },
     { id: 'demo_group_venue', projectId: DEMO_PROJECT_ID, name: '会場設営' }
   ];
 
- 
+  // ---------------- 準備タスク(prep) ----------------
   const prepTasks: Task[] = [
     {
       taskId: 'demo_task_prep_1',
@@ -170,53 +192,58 @@ export function buildDemoData(now: Date = new Date()): {
     }
   ];
 
-    const dayTasks: Task[] = [
+  // ---------------- 当日タスク(day) ----------------
+  // 文化祭の一般的な日程(10:00開場・15:00閉場)に合わせた固定の時刻にしている
+  const dayTasks: Task[] = [
     {
       taskId: 'demo_task_day_1',
       projectId: DEMO_PROJECT_ID,
       taskMode: 'day',
-      taskName: '開場前アナウンス・最終チェック',
+      taskName: '最終確認',
+      description: '照明・音響・順路の最終確認',
       taskStatus: 'completed',
       needHelp: false,
       group: '',
       startDate: today,
       endDate: today,
       taskType: 'individual',
-      startTime: formatTime(addMinutes(nowRounded, -210)),
-      endTime: formatTime(addMinutes(nowRounded, -180)),
+      startTime: '09:00',
+      endTime: '10:00',
       color: 'bg-blue-500',
-      assignees: ['demo_user_me']
+      assignees: ['demo_user_me', 'demo_member_4']
     },
     {
       taskId: 'demo_task_day_2',
       projectId: DEMO_PROJECT_ID,
       taskMode: 'day',
       taskName: '受付対応',
+      description: '整理券の配布と待ち列の案内。1時間ごとに交代',
       taskStatus: 'active',
       needHelp: false,
       group: '',
       startDate: today,
       endDate: today,
       taskType: 'resident',
-      startTime: formatTime(addMinutes(nowRounded, -120)),
-      endTime: formatTime(addMinutes(nowRounded, 180)),
+      startTime: '10:00',
+      endTime: '15:00',
       currentId: 'demo_member_3',
       color: 'bg-pink-500',
-      assignees: ['demo_member_2', 'demo_member_3', 'demo_member_4']
+      assignees: ['demo_member_2', 'demo_member_3', 'demo_user_me']
     },
     {
       taskId: 'demo_task_day_3',
       projectId: DEMO_PROJECT_ID,
       taskMode: 'day',
-      taskName: 'おばけ役(メインモンスター)',
+      taskName: 'おばけ役',
+      description: 'メインモンスター役。1時間ごとに交代',
       taskStatus: 'active',
       needHelp: false,
       group: '',
       startDate: today,
       endDate: today,
       taskType: 'resident',
-      startTime: formatTime(addMinutes(nowRounded, -60)),
-      endTime: formatTime(addMinutes(nowRounded, 120)),
+      startTime: '10:00',
+      endTime: '15:00',
       currentId: 'demo_member_4',
       color: 'bg-pink-500',
       assignees: ['demo_member_4', 'demo_member_5']
@@ -225,32 +252,50 @@ export function buildDemoData(now: Date = new Date()): {
       taskId: 'demo_task_day_4',
       projectId: DEMO_PROJECT_ID,
       taskMode: 'day',
-      taskName: '小道具(血のり)の補充',
+      taskName: '呼び込み',
+      description: '校門前でビラ配り',
+      taskStatus: 'completed',
+      needHelp: false,
+      group: '',
+      startDate: today,
+      endDate: today,
+      taskType: 'individual',
+      startTime: '10:00',
+      endTime: '11:00',
+      color: 'bg-blue-500',
+      assignees: ['demo_member_5']
+    },
+    {
+      taskId: 'demo_task_day_5',
+      projectId: DEMO_PROJECT_ID,
+      taskMode: 'day',
+      taskName: '血のり補充',
+      description: '在庫が少なくなってきたので買い出しが必要です',
       taskStatus: 'active',
       needHelp: true,
       group: '',
       startDate: today,
       endDate: today,
       taskType: 'individual',
-      startTime: formatTime(addMinutes(nowRounded, -15)),
-      endTime: formatTime(addMinutes(nowRounded, 30)),
-      description: '在庫が少なくなってきたので買い出しが必要です',
+      startTime: '11:30',
+      endTime: '13:00',
       color: 'bg-blue-500',
       assignees: ['demo_member_2']
     },
     {
-      taskId: 'demo_task_day_5',
+      taskId: 'demo_task_day_6',
       projectId: DEMO_PROJECT_ID,
       taskMode: 'day',
-      taskName: '閉場後の撤収・清掃',
+      taskName: '撤収・清掃',
+      description: '閉場後に全員で片付け',
       taskStatus: 'active',
       needHelp: false,
       group: '',
       startDate: today,
       endDate: today,
       taskType: 'individual',
-      startTime: formatTime(addMinutes(nowRounded, 180)),
-      endTime: formatTime(addMinutes(nowRounded, 240)),
+      startTime: '15:00',
+      endTime: '16:30',
       color: 'bg-blue-500',
       assignees: members.map(m => m.id)
     }
@@ -302,3 +347,8 @@ export function buildDemoData(now: Date = new Date()): {
 
   return { project, members, groups, tasks, expenses, memos };
 }
+
+// デモ中のデータ置き場(メモリ上)。保存・削除の操作はここに反映されるので、
+// プロジェクトを開き直しても完了状態などが保たれる。
+// ページを再読み込みすると buildDemoData() からやり直しになり、初期状態に戻る。
+export const demoStore = isDemoMode ? buildDemoData() : null;

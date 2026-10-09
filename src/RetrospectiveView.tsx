@@ -28,14 +28,15 @@ export default function RetrospectiveView({ project, tasks, expenses, members, o
   }, [members, tasks]);
 
   return (
-    <div className="flex-1 overflow-auto bg-gray-50 p-4 md:p-8 flex flex-col gap-6 items-center">
-      <div className="w-full max-w-3xl flex items-center mb-2">
+    <div className="flex-1 overflow-auto bg-gray-50 p-4 md:p-8 mb-16 md:mb-0 flex flex-col gap-6 items-center">
+      <div className="w-full max-w-3xl flex items-center mb-2 shrink-0">
         <button onClick={onBack} className="text-gray-500 font-bold hover:text-gray-800 flex items-center gap-1">
           <span className="text-xl">←</span> 戻る
         </button>
       </div>
 
-      <div className="w-full max-w-3xl bg-white rounded-2xl p-8 shadow-sm border border-gray-200 text-center relative overflow-hidden">
+      {/* shrink-0: 縦並びの中でカードが画面の高さに合わせて縮み、下の内容(貢献度)が切れてスクロールできなくなるのを防ぐ */}
+      <div className="w-full max-w-3xl bg-white rounded-2xl p-8 shadow-sm border border-gray-200 text-center relative overflow-hidden shrink-0">
         <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-blue-400 via-purple-500 to-pink-500"></div>
         <h1 className="text-3xl font-extrabold text-gray-800 mb-2">🎉 お疲れ様でした！</h1>
         <p className="text-gray-500 font-bold text-lg mb-6">プロジェクト「{project.name}」の振り返りレポート</p>
