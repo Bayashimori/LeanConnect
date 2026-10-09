@@ -19,13 +19,17 @@ export default function MemberView({
   project, 
   setProjects, 
   projects, 
+  groups,
   members, 
   tasks, 
   isReadOnly = false, 
   requestConfirm 
 }: MemberViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [, setSelectedMemberTasks] = useState<{member: Member, tasks: Task[]} | null>(null);
+  const [selectedMemberTasks, setSelectedMemberTasks] = useState<{member: Member, tasks: Task[]} | null>(null);
+  // 検索欄に入力している間は、右下の招待ボタンを隠す
+  // (スマホではキーボードが出ると画面が縮み、ボタンが検索欄に重なってしまうため)
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // ▼ 修正: モーダルの開閉フラグのセッターを有効化
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
@@ -135,6 +139,8 @@ export default function MemberView({
             placeholder="ユーザーIDで検索" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => setIsSearchFocused(true)}
+            onBlur={() => setIsSearchFocused(false)}
             className="flex-1 outline-none text-sm font-medium p-1"
           />
         </div>
@@ -175,13 +181,14 @@ export default function MemberView({
         </div>
       </div>
 
-      {!isReadOnly && (
+      {!isReadOnly && !isSearchFocused && (
         <div className="absolute bottom-20 md:bottom-8 right-4 md:right-8 z-30">
+          {/* スマホでは幅と高さを固定して正円にする(以前は縦長の楕円になっていた) */}
           <button 
             onClick={handleOpenAddMemberPanel}
-            className="bg-blue-600 hover:bg-blue-700 transition-all text-white font-bold p-4 md:py-3.5 md:px-6 rounded-full shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+            className="bg-blue-600 hover:bg-blue-700 transition-all text-white font-bold w-14 h-14 md:w-auto md:h-auto md:py-3.5 md:px-6 rounded-full shadow-lg flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span className="text-xl">+</span>
+            <span className="text-2xl font-light leading-none">+</span>
             <span className="hidden md:inline">メンバー招待</span>
           </button>
         </div>
@@ -236,6 +243,56 @@ export default function MemberView({
               >
                 追加する
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedMemberTasks && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedMemberTasks(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden p-6 flex flex-col gap-4 max-h-[80vh]" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center border-b pb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                {selectedMemberTasks.member.avatarUrl ? (
+                  <img src={selectedMemberTasks.member.avatarUrl} alt={selectedMemberTasks.member.name} className="w-8 h-8 rounded-full border object-cover" />
+                ) : (
+                  <div className={`${selectedMemberTasks.member.color} w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold`}>
+                    {selectedMemberTasks.member.name.charAt(0)}
+                  </div>
+                )}
+                <h3 className="font-extrabold text-lg text-gray-800">{selectedMemberTasks.member.name} さんのタスク</h3>
+              </div>
+              <button onClick={() => setSelectedMemberTasks(null)} className="text-gray-400 hover:text-gray-600 text-2xl cursor-pointer">&times;</button>
+            </div>
+            <div className="overflow-y-auto flex flex-col gap-3">
+              {selectedMemberTasks.tasks.length === 0 ? (
+                 <p className="text-gray-400 text-center font-bold text-sm my-4">担当タスクはありません</p>
+              ) : (
+                selectedMemberTasks.tasks.map(t => (
+                  <div key={t.taskId} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div className="flex gap-2 mb-2">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${t.taskMode === 'prep' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
+                        {t.taskMode === 'prep' ? '準備' : '当日'}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-200 text-gray-700">
+                        {groups.find(g => g.id === t.group)?.name || '未設定'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="font-bold text-gray-800 text-sm">{t.taskName}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${t.taskStatus === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+                        {t.taskStatus === 'completed' ? '完了' : '進行中'}
+                      </span>
+                    </div>
+                    <p className="text-xs font-bold text-gray-500">
+                      {t.taskMode === 'prep' ? `${t.startDate} 〜 ${t.endDate}` : `${t.startTime} 〜 ${t.endTime}`}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="pt-2 shrink-0">
+              <button onClick={() => setSelectedMemberTasks(null)} className="w-full py-2.5 border rounded-xl font-bold text-gray-700 hover:bg-gray-50 cursor-pointer">閉じる</button>
             </div>
           </div>
         </div>
