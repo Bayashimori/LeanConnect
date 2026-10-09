@@ -285,10 +285,10 @@ export default function ProjectManagerView({
 
     setNewTaskStart(`${y}-${m}-${d}`);
     setNewTaskEnd(`${ny}-${nm}-${nd}`);
-    setNewTaskDescription('');
-    setNewTaskStartTime('10:00');
-    setNewTaskEndTime('12:00');
-    setNewTaskType('resident');
+    setNewTaskDescription("");
+    setNewTaskStartTime("10:00");
+    setNewTaskEndTime("12:00");
+    setNewTaskType("resident");
     setNewTaskAssignees([]);
     setIsTaskModalOpen(true);
   };
@@ -400,13 +400,13 @@ export default function ProjectManagerView({
     if (!selectedTask || project.status === "completed") return;
     const updated = { ...selectedTask, ...updates };
 
-    if (updated.taskMode === 'day' && updated.taskType === 'resident') {
+    if (updated.taskMode === "day" && updated.taskType === "resident") {
       const list = updated.assignees || [];
       if (!updated.currentId || !list.includes(updated.currentId)) {
         updated.currentId = list[0];
       }
     }
-    
+
     (Object.keys(updated) as (keyof Task)[]).forEach((key) => {
       if (updated[key] === undefined) {
         delete updated[key];
@@ -433,13 +433,22 @@ export default function ProjectManagerView({
       task.currentId || task.assignees[0],
     );
     const nextIndex = (currentIndex + 1) % task.assignees.length;
-    const nextAssignee = task.assignees[nextIndex];
+    const nextAssigneeId = task.assignees[nextIndex];
+    const nextMember = projectMembers.find((m) => m.id === nextAssigneeId);
+    const nextMemberName = nextMember ? nextMember.name : "次のメンバー";
 
-    setTasks(
-      tasks.map((t) =>
-        t.taskId === task.taskId ? { ...t, currentId: nextAssignee } : t,
-      ),
-    );
+    requestConfirm({
+      title: "担当の引き継ぎ",
+      message: `「${task.taskName}」の担当を ${nextMemberName} さんに引き継ぎますか？`,
+      confirmText: "引き継ぐ",
+      onConfirm: () => {
+        setTasks(
+          tasks.map((t) =>
+            t.taskId === task.taskId ? { ...t, currentId: nextAssigneeId } : t,
+          ),
+        );
+      },
+    });
   };
 
   const currentUserDisplayName = currentUser.username || currentUser.name;
@@ -1471,22 +1480,35 @@ export default function ProjectManagerView({
                 </div>
               </div>
 
-              {editingTask.taskMode === "day" &&
+             {editingTask.taskMode === "day" &&
                 editingTask.taskType === "resident" && (
                   <div className="bg-pink-50 p-3 rounded-xl border border-pink-200 flex flex-col gap-2">
                     <p className="text-xs font-bold text-pink-700">
                       📌 常駐タスク引き継ぎ管理
                     </p>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-bold">
-                        現在の担当:{" "}
+                      <div className="flex items-center gap-2">
                         {(() => {
                           const cm = projectMembers.find(
                             (m) => m.id === editingTask.currentId,
                           );
-                          return cm ? memberDisplayLabel(cm) : "未割当";
+                          const avatar = cm?.avatarUrl || cm?.iconUrl;
+                          return (
+                            <>
+                              {avatar ? (
+                                <img src={avatar} alt="avatar" className="w-8 h-8 rounded-full object-cover border shadow-xs" />
+                              ) : (
+                                <div className={`w-8 h-8 rounded-full ${cm?.color || 'bg-blue-600'} text-white text-xs font-bold flex items-center justify-center shadow-xs`}>
+                                  {cm ? cm.name.charAt(0) : '未'}
+                                </div>
+                              )}
+                              <span className="text-sm font-bold">
+                                現在の担当: {cm ? memberDisplayLabel(cm) : "未割当"}
+                              </span>
+                            </>
+                          );
                         })()}
-                      </span>
+                      </div>
                       {project.status === "active" && (
                         <button
                           type="button"

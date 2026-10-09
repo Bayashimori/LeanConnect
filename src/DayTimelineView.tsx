@@ -73,7 +73,6 @@ export default function DayTimelineView({ tasks, timeSlots, members, onSelectTas
       <div
         className="grid w-full"
         style={{
-          // 各タスク列の最大幅を 80px に制限
           gridTemplateColumns: `70px repeat(${totalCols - 1}, minmax(80px, 120px))`,
           gridTemplateRows: `48px repeat(${timeSlots.length}, 60px)`
         }}
@@ -138,19 +137,25 @@ export default function DayTimelineView({ tasks, timeSlots, members, onSelectTas
                 gridColumn: colIndex,
               }}
             >
-              {/* 上から「担当者(+ID)と引き継ぎボタン」→「縦書きのタスク名」→「完了・SOSバッジ」の順に縦に積む。
-                  SOSバッジを名前の横に置くと、細い列では名前が押し出されて改行・見切れが起きるため。 */}
               <div className="sticky top-25 flex flex-col items-center gap-2 p-2 w-full">
                 {isResident && (() => {
                   const cm = members.find(m => m.id === t.currentId);
+                  const avatarUrl = cm?.avatarUrl || cm?.iconUrl;
                   return (
                     <div className="w-full flex flex-col items-center gap-1 bg-black/10 rounded-md px-1.5 py-1.5 text-center">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="avatar" className="w-7 h-7 rounded-full object-cover border border-white/80 shadow-xs" />
+                      ) : (
+                        <div className={`w-7 h-7 rounded-full ${cm?.color || 'bg-blue-600'} text-white text-xs font-bold flex items-center justify-center shadow-xs`}>
+                          {cm ? cm.name.charAt(0) : '未'}
+                        </div>
+                      )}
                       <span className="text-[11px] font-bold leading-tight break-all">{cm ? cm.name : '未割当'}</span>
                       {cm && <span className="text-[10px] font-normal opacity-80 leading-tight break-all">{memberIdLabel(cm)}</span>}
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onHandover(t); }}
-                        className="bg-white text-gray-800 hover:bg-gray-100 px-2 py-0.5 rounded font-bold shadow-xs text-[11px] whitespace-nowrap"
+                        className="bg-white text-gray-800 hover:bg-gray-100 px-2 py-0.5 rounded font-bold shadow-xs text-[11px] whitespace-nowrap cursor-pointer"
                       >
                         引き継ぎ
                       </button>
