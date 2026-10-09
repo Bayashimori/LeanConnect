@@ -493,6 +493,7 @@ export default function ProjectManagerView({
 
   return (
     <div className="flex-1 flex flex-col md:flex-row h-full min-h-0 bg-white relative font-sans overflow-hidden">
+      {/* PC用サイドバー */}
       <aside className="hidden md:flex flex-col w-64 bg-gray-50 border-r border-gray-200 shrink-0 z-20">
         <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 shrink-0">
           <div className="flex items-center overflow-hidden">
@@ -551,6 +552,7 @@ export default function ProjectManagerView({
           </button>
         </div>
 
+        {/* PC用ナビゲーションメニュー */}
         <nav className="flex-1 py-6 flex flex-col gap-2 px-4 overflow-y-auto">
           {navMenuItems.map((item) => {
             const isActive = currentNav === item.id;
@@ -620,7 +622,8 @@ export default function ProjectManagerView({
       </aside>
 
       {/* --- メインビュー領域（右側 / スマホ全体） --- */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative pb-16 md:pb-0">
+        {/* スマホ用ヘッダー（固定） */}
         <header className="md:hidden h-16 border-b border-gray-200 px-4 flex items-center justify-between shrink-0 bg-white z-20">
           <div className="flex items-center text-lg font-bold overflow-hidden">
             <button
@@ -699,8 +702,8 @@ export default function ProjectManagerView({
           </div>
         </header>
 
-        {/* 内部のビュー切り替えコンテナ（min-h-0 と overflow-auto でスクロール領域をここに限定） */}
-        <div className="flex-1 min-h-0 overflow-auto flex flex-col relative">
+        {/* 内部のビュー切り替えコンテナ */}
+        <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
           {currentNav === "retrospective" ? (
             <RetrospectiveView
               project={project}
@@ -773,85 +776,89 @@ export default function ProjectManagerView({
               requestConfirm={requestConfirm}
             />
           ) : (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="bg-white border-b border-gray-200 px-4 py-3 flex justify-center items-center shrink-0 z-30">
-                <div className="flex bg-gray-100 rounded-xl p-1 w-full max-w-sm text-sm shadow-inner">
-                  <button
-                    onClick={() => setTaskMode("prep")}
-                    className={`flex-1 py-2 flex items-center justify-center gap-2 font-bold transition-all rounded-lg cursor-pointer ${
-                      taskMode === "prep"
-                        ? "text-blue-600 bg-white shadow-xs"
-                        : "text-gray-500 hover:text-gray-700"
-                    }`}
-                  >
-                    <span>📄</span> 準備モード
-                  </button>
-                  <button
-                    onClick={() => setTaskMode("day")}
-                    className={`flex-1 py-2 flex items-center justify-center gap-2 font-bold transition-all rounded-lg cursor-pointer ${
-                      taskMode === "day"
-                        ? "text-blue-600 bg-white shadow-xs"
-                        : "text-gray-500 hover:text-gray-700"
-                    }`}
-                  >
-                    <span>🕒</span> 当日モード
-                  </button>
+            <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
+              {/* --- 下のメニューと同様に画面上部に完全固定するコントロール群パーツ --- */}
+              <div className="shrink-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+                <div className="px-4 py-3 flex justify-center items-center">
+                  <div className="flex bg-gray-100 rounded-xl p-1 w-full max-w-sm text-sm shadow-inner">
+                    <button
+                      onClick={() => setTaskMode("prep")}
+                      className={`flex-1 py-2 flex items-center justify-center gap-2 font-bold transition-all rounded-lg cursor-pointer ${
+                        taskMode === "prep"
+                          ? "text-blue-600 bg-white shadow-xs"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      <span>📄</span> 準備モード
+                    </button>
+                    <button
+                      onClick={() => setTaskMode("day")}
+                      className={`flex-1 py-2 flex items-center justify-center gap-2 font-bold transition-all rounded-lg cursor-pointer ${
+                        taskMode === "day"
+                          ? "text-blue-600 bg-white shadow-xs"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      <span>🕒</span> 当日モード
+                    </button>
+                  </div>
                 </div>
+
+                {taskMode === "prep" && (
+                  <div className="px-4 py-2 flex justify-center items-center gap-10 border-t border-gray-100 bg-white">
+                    <button
+                      onClick={handlePrevMonth}
+                      disabled={currentIndex <= 0}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 cursor-pointer"
+                      aria-label="前月へ"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M15 19l-7-7 7-7"
+                        />
+                      </svg>
+                    </button>
+                    <div className="text-lg font-extrabold text-gray-800">
+                      {selectedYearMonth
+                        ? `${selectedYearMonth.split("-")[0]}年 ${parseInt(selectedYearMonth.split("-")[1], 10)}月`
+                        : ""}
+                    </div>
+                    <button
+                      onClick={handleNextMonth}
+                      disabled={currentIndex >= availableYearMonths.length - 1}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 cursor-pointer"
+                      aria-label="次月へ"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {taskMode === "prep" && (
-                <div className="bg-white border-b border-gray-200 px-4 py-2 flex justify-center items-center gap-10 shrink-0 z-30">
-                  <button
-                    onClick={handlePrevMonth}
-                    disabled={currentIndex <= 0}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 cursor-pointer"
-                    aria-label="前月へ"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={3}
-                        d="M15 19l-7-7 7-7"
-                      />
-                    </svg>
-                  </button>
-                  <div className="text-lg font-extrabold text-gray-800">
-                    {selectedYearMonth
-                      ? `${selectedYearMonth.split("-")[0]}年 ${parseInt(selectedYearMonth.split("-")[1], 10)}月`
-                      : ""}
-                  </div>
-                  <button
-                    onClick={handleNextMonth}
-                    disabled={currentIndex >= availableYearMonths.length - 1}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 cursor-pointer"
-                    aria-label="次月へ"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={3}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              )}
-
-              <div className="flex-1 overflow-hidden relative">
+              {/* ガントチャートのタスク領域（ここだけがスクロールする） */}
+              <div className="flex-1 min-h-0 overflow-hidden relative">
                 {taskMode === "prep" ? (
                   <PrepGanttView
                     tasks={projectTasks}
@@ -874,7 +881,7 @@ export default function ProjectManagerView({
                 )}
 
                 {project.status === "active" && (
-                  <div className="absolute bottom-6 right-6 z-40">
+                  <div className="absolute bottom-20 right-6 z-40 md:bottom-6">
                     <button
                       onClick={() => handleOpenTaskModal("")}
                       className="bg-blue-600 hover:bg-blue-700 transition-all text-white font-bold p-4 rounded-full shadow-lg flex items-center justify-center gap-2 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
@@ -891,8 +898,8 @@ export default function ProjectManagerView({
           )}
         </div>
 
-        {/* スマホ用下部ナビゲーション（shrink-0 で常に画面下に固定表示） */}
-        <nav className="md:hidden h-16 bg-white border-t border-gray-200 flex justify-around items-center text-[10px] text-gray-500 shrink-0 z-40">
+        {/* --- スマホ用 下部固定ナビゲーションメニュー --- */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200 flex justify-around items-center text-[10px] text-gray-500 shrink-0 z-50 shadow-lg">
           {navMenuItems.map((item) => {
             const isActive = currentNav === item.id;
             return (
@@ -926,7 +933,7 @@ export default function ProjectManagerView({
         </nav>
       </div>
 
-      {/* --- グループ詳細・編集モーダル --- */}
+      {/* --- 各種モーダル類 --- */}
       {selectedGroup && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -1004,7 +1011,7 @@ export default function ProjectManagerView({
                         </button>
                       )}
                     </div>
-                    <div className="bg-gray-50 p-3 rounded-xl max-h-28 overflow-y-auto text-sm">
+                    <div className="bg-gray-50 p-3 rounded-xl max-h-28 overflow-y-hidden text-sm">
                       {activeGroupTasks.length === 0 ? (
                         <p className="text-gray-400 text-xs">なし</p>
                       ) : (
@@ -1467,7 +1474,7 @@ export default function ProjectManagerView({
                 )}
               </div>
 
-             {editingTask.taskMode === "day" &&
+              {editingTask.taskMode === "day" &&
                 editingTask.taskType === "resident" && (
                   <div className="bg-pink-50 p-3 rounded-xl border border-pink-200 flex flex-col gap-2">
                     <p className="text-xs font-bold text-pink-700">
@@ -1571,6 +1578,7 @@ export default function ProjectManagerView({
         </div>
       )}
 
+      {/* --- メンバー選択・変更モーダル --- */}
       {isMemberSelectModalOpen && editingTask && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-100 p-4"
