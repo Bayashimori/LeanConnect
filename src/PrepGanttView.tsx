@@ -36,7 +36,7 @@ export default function PrepGanttView({
     if (!container || !onVisibleMonthChange || dates.length === 0) return;
 
     const handleScroll = () => {
-      const headerOffset = 60; // ヘッダー行の高さ
+      const headerOffset = 60;
       const containerTop = container.getBoundingClientRect().top;
 
       for (const d of dates) {
@@ -112,12 +112,16 @@ export default function PrepGanttView({
     return <div className="flex items-center justify-center h-full text-gray-400 font-bold">タスクがありません</div>;
   }
 
+  // カラム数に応じて全体の最小幅を動的に確保し、細くなりすぎたら横スクロールさせる
+  const minWidthPx = Math.max(320, 60 + (totalCols - 1) * 55 + 80);
+
   return (
     <div ref={containerRef} className="flex-1 overflow-auto bg-white relative w-full h-full">
       <div 
-        className="grid w-full"
+        className="grid"
         style={{
-          gridTemplateColumns: `60px repeat(${Math.max(1, totalCols - 2)}, minmax(40px, 80px)) 80px`,
+          minWidth: `${minWidthPx}px`,
+          gridTemplateColumns: `60px repeat(${Math.max(1, totalCols - 2)}, minmax(45px, 1fr)) 80px`,
           gridTemplateRows: `56px repeat(${dates.length}, 60px)`
         }}
       >

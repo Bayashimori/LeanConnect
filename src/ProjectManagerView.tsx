@@ -268,10 +268,10 @@ export default function ProjectManagerView({
     return slots;
   }, [projectTasks]);
 
-  const handleOpenTaskModal = () => {
+  const handleOpenTaskModal = (defaultGroupId: string = "") => {
     if (project.status === "completed") return;
     setNewTaskName("");
-    setNewTaskGroup("");
+    setNewTaskGroup(defaultGroupId);
 
     const today = new Date();
     const tomorrow = new Date();
@@ -289,8 +289,6 @@ export default function ProjectManagerView({
     setNewTaskStartTime('10:00');
     setNewTaskEndTime('12:00');
     setNewTaskType('resident');
-    // 作成画面には担当者を選ぶ欄がないため、最初は誰も割り当てない
-    // (以前はメンバー一覧の先頭2人が自動で入っていた)。担当者はタスク詳細から追加する。
     setNewTaskAssignees([]);
     setIsTaskModalOpen(true);
   };
@@ -351,20 +349,21 @@ export default function ProjectManagerView({
     setIsGroupModalOpen(false);
   };
 
-  const handleUpdateGroup = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (
-      !selectedGroup ||
-      project.status === "completed" ||
-      !editingGroupName.trim()
-    )
+  // グループ詳細画面の変更を保存して閉じる処理
+  const handleSaveAndCloseGroup = () => {
+    if (!selectedGroup || project.status === "completed") {
+      setSelectedGroup(null);
       return;
+    }
 
-    setGroups(
-      groups.map((g) =>
-        g.id === selectedGroup.id ? { ...g, name: editingGroupName.trim() } : g,
-      ),
-    );
+    const trimmedName = editingGroupName.trim();
+    if (trimmedName && trimmedName !== selectedGroup.name) {
+      setGroups(
+        groups.map((g) =>
+          g.id === selectedGroup.id ? { ...g, name: trimmedName } : g,
+        ),
+      );
+    }
     setSelectedGroup(null);
   };
 
@@ -401,8 +400,6 @@ export default function ProjectManagerView({
     if (!selectedTask || project.status === "completed") return;
     const updated = { ...selectedTask, ...updates };
 
-    // 常駐タスクで「現在の担当」が空、または割り当てから外された場合は、
-    // 割り当てメンバーの先頭を自動で担当にする(1人だけだと引き継ぎボタンも使えず「未割当」のままになるため)
     if (updated.taskMode === 'day' && updated.taskType === 'resident') {
       const list = updated.assignees || [];
       if (!updated.currentId || !list.includes(updated.currentId)) {
@@ -869,7 +866,7 @@ export default function ProjectManagerView({
                 {project.status === "active" && (
                   <div className="absolute bottom-6 right-6 z-40">
                     <button
-                      onClick={handleOpenTaskModal}
+                      onClick={() => handleOpenTaskModal("")}
                       className="bg-blue-600 hover:bg-blue-700 transition-all text-white font-bold p-4 rounded-full shadow-lg flex items-center justify-center gap-2 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
                       aria-label="タスクの新規作成"
                     >
@@ -919,25 +916,19 @@ export default function ProjectManagerView({
       </div>
 
       {/* --- グループ詳細・編集モーダル --- */}
-      {selectedGroup && project.status === "active" && (
+      {selectedGroup && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedGroup(null)}
+          onClick={handleSaveAndCloseGroup}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden p-6 flex flex-col gap-4 animate-in fade-in zoom-in duration-200"
+            className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden p-6 flex flex-col gap-4 animate-in fade-in zoom-in duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center border-b pb-3">
+            <div className="border-b pb-3">
               <h3 className="font-extrabold text-lg text-gray-800">
                 グループの管理
               </h3>
-              <button
-                onClick={() => setSelectedGroup(null)}
-                className="text-gray-400 hover:text-gray-600 text-2xl cursor-pointer"
-              >
-                &times;
-              </button>
             </div>
 
             {(() => {
@@ -956,12 +947,10 @@ export default function ProjectManagerView({
                   : Math.round(
                       (completedGroupTasks.length / groupTasks.length) * 100,
                     );
+              const hasChanges = editingGroupName.trim() !== selectedGroup.name;
 
               return (
-                <form
-                  onSubmit={handleUpdateGroup}
-                  className="flex flex-col gap-4"
-                >
+                <div className="flex flex-col gap-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">
                       グループ名
@@ -985,9 +974,25 @@ export default function ProjectManagerView({
                   </div>
 
                   <div>
-                    <p className="text-sm font-bold text-gray-700 mb-1">
-                      残っているタスク ({activeGroupTasks.length}件)
-                    </p>
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-sm font-bold text-gray-700">
+                        残っているタスク ({activeGroupTasks.length}件)
+                      </p>
+                      {project.status === "active" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const targetGroupId = selectedGroup.id;
+                            setSelectedGroup(null);
+                            setTaskMode("prep");
+                            handleOpenTaskModal(targetGroupId);
+                          }}
+                          className="text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                        >
+                          ＋ タスク追加
+                        </button>
+                      )}
+                    </div>
                     <div className="bg-gray-50 p-3 rounded-xl max-h-28 overflow-y-auto text-sm">
                       {activeGroupTasks.length === 0 ? (
                         <p className="text-gray-400 text-xs">なし</p>
@@ -1002,30 +1007,28 @@ export default function ProjectManagerView({
                   </div>
 
                   <div className="pt-4 border-t flex flex-col gap-2">
-                    <div className="flex gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedGroup(null)}
-                        className="flex-1 py-2.5 border border-gray-300 rounded-xl font-bold text-gray-700 hover:bg-gray-50 cursor-pointer"
-                      >
-                        キャンセル
-                      </button>
-                      <button
-                        type="submit"
-                        className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-sm cursor-pointer"
-                      >
-                        変更を保存
-                      </button>
-                    </div>
                     <button
                       type="button"
-                      onClick={() => handleDeleteGroup(selectedGroup)}
-                      className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs transition-colors cursor-pointer mt-1"
+                      onClick={handleSaveAndCloseGroup}
+                      className={`w-full py-3 font-bold rounded-xl shadow-sm transition-all cursor-pointer ${
+                        hasChanges
+                          ? "bg-blue-600 hover:bg-blue-700 text-white"
+                          : "border border-gray-300 hover:bg-gray-50 text-gray-700"
+                      }`}
                     >
-                      グループを削除
+                      {hasChanges ? "保存して閉じる" : "閉じる"}
                     </button>
+                    {project.status === "active" && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteGroup(selectedGroup)}
+                        className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs transition-colors cursor-pointer mt-1"
+                      >
+                        グループを削除
+                      </button>
+                    )}
                   </div>
-                </form>
+                </div>
               );
             })()}
           </div>
