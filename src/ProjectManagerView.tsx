@@ -285,11 +285,13 @@ export default function ProjectManagerView({
 
     setNewTaskStart(`${y}-${m}-${d}`);
     setNewTaskEnd(`${ny}-${nm}-${nd}`);
-    setNewTaskDescription("");
-    setNewTaskStartTime("10:00");
-    setNewTaskEndTime("12:00");
-    setNewTaskType("resident");
-    setNewTaskAssignees(projectMembers.map((mem) => mem.id).slice(0, 2));
+    setNewTaskDescription('');
+    setNewTaskStartTime('10:00');
+    setNewTaskEndTime('12:00');
+    setNewTaskType('resident');
+    // 作成画面には担当者を選ぶ欄がないため、最初は誰も割り当てない
+    // (以前はメンバー一覧の先頭2人が自動で入っていた)。担当者はタスク詳細から追加する。
+    setNewTaskAssignees([]);
     setIsTaskModalOpen(true);
   };
 
@@ -399,6 +401,15 @@ export default function ProjectManagerView({
     if (!selectedTask || project.status === "completed") return;
     const updated = { ...selectedTask, ...updates };
 
+    // 常駐タスクで「現在の担当」が空、または割り当てから外された場合は、
+    // 割り当てメンバーの先頭を自動で担当にする(1人だけだと引き継ぎボタンも使えず「未割当」のままになるため)
+    if (updated.taskMode === 'day' && updated.taskType === 'resident') {
+      const list = updated.assignees || [];
+      if (!updated.currentId || !list.includes(updated.currentId)) {
+        updated.currentId = list[0];
+      }
+    }
+    
     (Object.keys(updated) as (keyof Task)[]).forEach((key) => {
       if (updated[key] === undefined) {
         delete updated[key];

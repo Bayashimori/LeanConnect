@@ -138,25 +138,37 @@ export default function DayTimelineView({ tasks, timeSlots, members, onSelectTas
                 gridColumn: colIndex,
               }}
             >
-              <div className="sticky top-25 flex flex-col gap-2 p-3 w-full">
-                <div className="flex justify-between items-start">
-                  <span className="font-extrabold text-base tracking-wide drop-shadow-sm">{t.taskName}</span>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {isCompleted && <span className="text-white bg-green-500 rounded-full w-4 h-4 flex items-center justify-center text-[10px]">✓</span>}
-                    {t.needHelp && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-bounce">🆘 SOS</span>}
-                  </div>
-                </div>
+              {/* 上から「担当者(+ID)と引き継ぎボタン」→「縦書きのタスク名」→「完了・SOSバッジ」の順に縦に積む。
+                  SOSバッジを名前の横に置くと、細い列では名前が押し出されて改行・見切れが起きるため。 */}
+              <div className="sticky top-25 flex flex-col items-center gap-2 p-2 w-full">
+                {isResident && (() => {
+                  const cm = members.find(m => m.id === t.currentId);
+                  return (
+                    <div className="w-full flex flex-col items-center gap-1 bg-black/10 rounded-md px-1.5 py-1.5 text-center">
+                      <span className="text-[11px] font-bold leading-tight break-all">{cm ? cm.name : '未割当'}</span>
+                      {cm && <span className="text-[10px] font-normal opacity-80 leading-tight break-all">{memberIdLabel(cm)}</span>}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onHandover(t); }}
+                        className="bg-white text-gray-800 hover:bg-gray-100 px-2 py-0.5 rounded font-bold shadow-xs text-[11px] whitespace-nowrap"
+                      >
+                        引き継ぎ
+                      </button>
+                    </div>
+                  );
+                })()}
 
-                {isResident && (
-                  <div className="pt-2 border-t border-white/20 flex justify-between items-center text-xs bg-black/10 px-2 py-1 rounded">
-                    <span>担当: {(() => { const cm = members.find(m => m.id === t.currentId); return cm ? (<><strong className="underline">{cm.name}</strong><span className="ml-1 text-[10px] opacity-80">{memberIdLabel(cm)}</span></>) : <strong className="underline">未割当</strong>; })()}</span>
-                    <button 
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); onHandover(t); }}
-                      className="bg-white text-gray-800 hover:bg-gray-100 px-2 py-0.5 rounded font-bold shadow-xs text-[11px]"
-                    >
-                      引き継ぎ &gt;
-                    </button>
+                <span
+                  className="font-extrabold text-base tracking-widest drop-shadow-sm"
+                  style={{ writingMode: 'vertical-rl', textOrientation: 'upright' }}
+                >
+                  {t.taskName}
+                </span>
+
+                {(isCompleted || t.needHelp) && (
+                  <div className="flex flex-wrap items-center justify-center gap-1">
+                    {isCompleted && <span className="text-white bg-green-500 rounded-full w-4 h-4 flex items-center justify-center text-[10px]">✓</span>}
+                    {t.needHelp && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-bounce whitespace-nowrap">SOS</span>}
                   </div>
                 )}
               </div>
