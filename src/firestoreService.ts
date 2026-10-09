@@ -12,13 +12,37 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Project, Task, Group, Expense, Memo, Member, User } from './types';
+import { isDemoMode, demoStore as demo, DEMO_DIRECTORY, DEMO_USER } from './demoData';
+
+// デモモード用: 開いているプロジェクトのメンバー一覧を画面に反映する関数
+let demoSetMembers: ((members: Member[]) => void) | null = null;
+
+// デモモード用: プロジェクトのmemberIdsから、メンバー一覧を作り直す
+const buildDemoMembers = (project: Project): Member[] =>
+  (project.memberIds || []).flatMap((uid) => {
+    const existing = demo?.members.find(m => m.id === uid);
+    if (existing) return [existing];
+    const u = DEMO_DIRECTORY.find(d => d.id === uid);
+    if (!u) return [];
+    return [{ id: u.id, projectId: project.id, name: u.name, username: u.username, color: u.color || 'bg-blue-600', isMe: u.id === DEMO_USER.id }];
+  });
+
+// デモモード用: 配列の中の同じIDの要素を置き換える(なければ末尾に追加する)
+const upsertById = <T,>(list: T[], item: T, key: keyof T): T[] => {
+  const index = list.findIndex(x => x[key] === item[key]);
+  return index >= 0 ? list.map((x, i) => (i === index ? item : x)) : [...list, item];
+};
 
 const sanitizeData = <T extends Record<string, unknown>>(data: T): Record<string, unknown> => {
   const result: Record<string, unknown> = {};
   Object.keys(data).forEach((key) => {
     const value = data[key];
     if (value !== undefined) {
-      if (value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+      // 中身を整理するのは「普通のオブジェクト」だけにする。
+      // serverTimestamp() などFirestoreの特殊な値までバラしてしまうと、
+      // 日時ではなくただのデータとして保存され、画面に「Invalid Date」と出てしまうため。
+      const isPlainObject = value !== null && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype;
+      if (isPlainObject) {
         result[key] = sanitizeData(value as Record<string, unknown>);
       } else {
         result[key] = value;
@@ -28,7 +52,18 @@ const sanitizeData = <T extends Record<string, unknown>>(data: T): Record<string
   return result;
 };
 
+// Firestoreから読んだ日時をミリ秒に直す。
+// 以前の不具合で日時が壊れた形で保存されたデータもあるため、読めない場合は0にする
+// (画面側では0のときは時刻を表示しない)。
+const toMillis = (value: unknown): number => {
+  if (typeof value === 'number') return value;
+  const maybeTimestamp = value as { toMillis?: () => number } | null;
+  if (maybeTimestamp && typeof maybeTimestamp.toMillis === 'function') return maybeTimestamp.toMillis();
+  return 0;
+};
+
 export const getUserDoc = async (userId: string): Promise<User | null> => {
+  if (isDemoMode) return null;
   try {
     const docRef = doc(db, 'users', userId);
     const docSnap = await getDoc(docRef);
@@ -41,7 +76,7 @@ export const getUserDoc = async (userId: string): Promise<User | null> => {
       email: data.email || '',
       avatarUrl: data.avatarUrl || '',
       color: data.color || 'bg-blue-600',
-      createdAt: data.createdAt?.toMillis?.() || data.createdAt || Date.now()
+      createdAt: toMillis(data.createdAt)
     };
   } catch {
     throw new Error("ユーザー情報の取得に失敗しました。");
@@ -49,6 +84,7 @@ export const getUserDoc = async (userId: string): Promise<User | null> => {
 };
 
 export const saveUserDoc = async (user: User) => {
+  if (isDemoMode) return;
   try {
     const docRef = doc(db, 'users', user.id);
     const data = sanitizeData({
@@ -67,6 +103,11 @@ export const saveUserDoc = async (user: User) => {
 };
 
 export const findUserByEmail = async (email: string): Promise<User | null> => {
+  if (isDemoMode) {
+    // デモ用の登録ユーザー一覧から探す(@ユーザー名でも見つかるようにしている)
+    const q = email.trim().toLowerCase().replace(/^@/, '');
+    return DEMO_DIRECTORY.find(u => u.email?.toLowerCase() === q || u.username?.toLowerCase() === q) || null;
+  }
   try {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) return null;
@@ -90,6 +131,10 @@ export const findUserByEmail = async (email: string): Promise<User | null> => {
 };
 
 export const subscribeUserProjects = (userId: string, callback: (projects: Project[]) => void) => {
+  if (isDemoMode && demo) {
+    callback([demo.project]);
+    return () => {};
+  }
   const q = query(
     collection(db, 'projects'),
     where('memberIds', 'array-contains', userId)
@@ -106,7 +151,7 @@ export const subscribeUserProjects = (userId: string, callback: (projects: Proje
         status: data.status || 'active',
         budget: data.budget || 0,
         memberIds: data.memberIds || [],
-        createdAt: data.createdAt?.toMillis?.() || data.createdAt || Date.now()
+        createdAt: toMillis(data.createdAt)
       });
     });
     callback(projects);
@@ -114,6 +159,17 @@ export const subscribeUserProjects = (userId: string, callback: (projects: Proje
 };
 
 export const saveProject = async (project: Project) => {
+  if (isDemoMode) {
+    if (demo && project.id === demo.project.id) {
+      demo.project = project;
+      // 招待・削除でメンバーが変わったら、メンバー一覧も更新する
+      const nextMembers = buildDemoMembers(project);
+      demo.members = nextMembers;
+      // 呼び出し元がReactのstate更新の途中なので、画面への反映は少し後にずらす
+      setTimeout(() => demoSetMembers?.(nextMembers), 0);
+    }
+    return;
+  }
   try {
     const docRef = doc(db, 'projects', project.id);
     const data = sanitizeData({
@@ -132,6 +188,7 @@ export const saveProject = async (project: Project) => {
 };
 
 export const deleteProjectDoc = async (projectId: string) => {
+  if (isDemoMode) return;
   try {
     await deleteDoc(doc(db, 'projects', projectId));
    
@@ -150,6 +207,16 @@ export const subscribeProjectData = (
     setMembers: (members: Member[]) => void;
   }
 ) => {
+  if (isDemoMode && demo) {
+    callbacks.setTasks(demo.tasks);
+    callbacks.setGroups(demo.groups);
+    callbacks.setExpenses(demo.expenses);
+    callbacks.setMemos(demo.memos);
+    callbacks.setMembers(demo.members);
+    demoSetMembers = callbacks.setMembers;
+    return () => { demoSetMembers = null; };
+  }
+
   const projectDocRef = doc(db, 'projects', projectId);
 
   const unsubTasks = onSnapshot(collection(projectDocRef, 'tasks'), (snap) => {
@@ -174,7 +241,7 @@ export const subscribeProjectData = (
         color: data.color || 'bg-blue-500',
         assignees: data.assignees || [],
         remind: data.remind,
-        createdAt: data.createdAt?.toMillis?.() || data.createdAt || Date.now()
+        createdAt: toMillis(data.createdAt)
       });
     });
     callbacks.setTasks(tasks);
@@ -189,7 +256,7 @@ export const subscribeProjectData = (
         projectId,
         name: data.name || '',
         description: data.description || '',
-        createdAt: data.createdAt?.toMillis?.() || data.createdAt || Date.now()
+        createdAt: toMillis(data.createdAt)
       });
     });
     callbacks.setGroups(groups);
@@ -206,7 +273,7 @@ export const subscribeProjectData = (
         amount: data.amount || 0,
         color: data.color || '#ef4444',
         memo: data.memo || '',
-        createdAt: data.createdAt?.toMillis?.() || data.createdAt || Date.now()
+        createdAt: toMillis(data.createdAt)
       });
     });
     callbacks.setExpenses(expenses);
@@ -225,7 +292,7 @@ export const subscribeProjectData = (
         authorColor: data.authorColor || 'bg-blue-500',
         content: data.content || '',
         reactions: data.reactions || [],
-        createdAt: data.createdAt?.toMillis?.() || data.createdAt || Date.now()
+        createdAt: toMillis(data.createdAt)
       });
     });
     callbacks.setMemos(memos);
@@ -268,6 +335,10 @@ export const subscribeProjectData = (
 };
 
 export const saveTaskDoc = async (projectId: string, task: Task) => {
+  if (isDemoMode) {
+    if (demo) demo.tasks = upsertById(demo.tasks, task, 'taskId');
+    return;
+  }
   try {
     const docRef = doc(db, 'projects', projectId, 'tasks', task.taskId);
     const data = sanitizeData({
@@ -282,6 +353,10 @@ export const saveTaskDoc = async (projectId: string, task: Task) => {
 };
 
 export const deleteTaskDoc = async (projectId: string, taskId: string) => {
+  if (isDemoMode) {
+    if (demo) demo.tasks = demo.tasks.filter(t => t.taskId !== taskId);
+    return;
+  }
   try {
     await deleteDoc(doc(db, 'projects', projectId, 'tasks', taskId));
    
@@ -292,6 +367,10 @@ export const deleteTaskDoc = async (projectId: string, taskId: string) => {
 
 // ==================== Groups ====================
 export const saveGroupDoc = async (projectId: string, group: Group) => {
+  if (isDemoMode) {
+    if (demo) demo.groups = upsertById(demo.groups, group, 'id');
+    return;
+  }
   try {
     const docRef = doc(db, 'projects', projectId, 'groups', group.id);
     const data = sanitizeData({
@@ -305,6 +384,10 @@ export const saveGroupDoc = async (projectId: string, group: Group) => {
 };
 
 export const deleteGroupDoc = async (projectId: string, groupId: string) => {
+  if (isDemoMode) {
+    if (demo) demo.groups = demo.groups.filter(g => g.id !== groupId);
+    return;
+  }
   try {
     await deleteDoc(doc(db, 'projects', projectId, 'groups', groupId));
   } catch (error) {
@@ -314,6 +397,10 @@ export const deleteGroupDoc = async (projectId: string, groupId: string) => {
 
 // ==================== Expenses ====================
 export const saveExpenseDoc = async (projectId: string, expense: Expense) => {
+  if (isDemoMode) {
+    if (demo) demo.expenses = upsertById(demo.expenses, expense, 'id');
+    return;
+  }
   try {
     const docRef = doc(db, 'projects', projectId, 'expenses', expense.id);
     const data = sanitizeData({
@@ -327,6 +414,10 @@ export const saveExpenseDoc = async (projectId: string, expense: Expense) => {
 };
 
 export const deleteExpenseDoc = async (projectId: string, expenseId: string) => {
+  if (isDemoMode) {
+    if (demo) demo.expenses = demo.expenses.filter(e => e.id !== expenseId);
+    return;
+  }
   try {
     await deleteDoc(doc(db, 'projects', projectId, 'expenses', expenseId));
   } catch (error) {
@@ -336,11 +427,15 @@ export const deleteExpenseDoc = async (projectId: string, expenseId: string) => 
 
 // ==================== Memos ====================
 export const saveMemoDoc = async (projectId: string, memo: Memo) => {
+  if (isDemoMode) {
+    if (demo) demo.memos = upsertById(demo.memos, memo, 'id');
+    return;
+  }
   try {
     const docRef = doc(db, 'projects', projectId, 'memos', memo.id);
     const data = sanitizeData({
       ...memo,
-      createdAt: serverTimestamp()
+      createdAt: typeof memo.createdAt === 'number' ? memo.createdAt : serverTimestamp()
     });
     await setDoc(docRef, data, { merge: true });
   } catch (error) {
@@ -349,6 +444,10 @@ export const saveMemoDoc = async (projectId: string, memo: Memo) => {
 };
 
 export const deleteMemoDoc = async (projectId: string, memoId: string) => {
+  if (isDemoMode) {
+    if (demo) demo.memos = demo.memos.filter(m => m.id !== memoId);
+    return;
+  }
   try {
     await deleteDoc(doc(db, 'projects', projectId, 'memos', memoId));
   } catch (error) {

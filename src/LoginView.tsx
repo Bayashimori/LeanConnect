@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { auth, googleProvider, signInWithPopup } from './firebase';
 import { getUserDoc, saveUserDoc } from './firestoreService';
 import type { User } from './types';
+import { isDemoMode, DEMO_USER } from './demoData';
 
 type LoginViewProps = {
   onLogin: (user: User) => void;
@@ -59,6 +60,11 @@ export default function LoginView({ onLogin }: LoginViewProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleGoogleLogin = async () => {
+    // オフラインデモ中はGoogleに接続せず、デモユーザーでそのままログインする
+    if (isDemoMode) {
+      onLogin(DEMO_USER);
+      return;
+    }
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
@@ -83,7 +89,13 @@ export default function LoginView({ onLogin }: LoginViewProps) {
       }
     } catch (error) {
       console.error('Googleログインに失敗しました', error);
-      alert('ログインに失敗しました。ポップアップがブロックされていないか確認してください。');
+      // 原因が分かるように、Firebaseのエラーコードも表示する
+      const code = (error as { code?: string })?.code || '';
+      if (code === 'auth/unauthorized-domain') {
+        alert(`このアドレス(${window.location.hostname})からのログインは許可されていません。\nFirebaseの「承認済みドメイン」に追加してください。`);
+      } else {
+        alert(`ログインに失敗しました。ポップアップがブロックされていないか確認してください。${code ? `\n(${code})` : ''}`);
+      }
     }
   };
 

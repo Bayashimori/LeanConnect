@@ -113,16 +113,19 @@ export default function HomeView({
       <main className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col items-center">
         <div className="w-full max-w-4xl flex flex-col gap-6">
           
-          <div className="flex justify-between items-end">
-            <div>
+          <div className="flex justify-between items-end gap-3">
+            <div className="min-w-0">
               <h2 className="text-2xl font-black text-gray-800">プロジェクト一覧</h2>
               <p className="text-xs text-gray-500 font-medium mt-0.5">参加中のプロジェクトを管理・選択してください</p>
             </div>
+            {/* スマホでは幅が足りず文字が折り返してボタンが大きく崩れるため、短い表記にして折り返さないようにする */}
             <button
               onClick={() => setIsModalOpen(true)}
-              className="bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-sm px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              className="shrink-0 whitespace-nowrap bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-sm px-4 py-2.5 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <span>＋</span> 新規プロジェクト
+              <span>＋</span>
+              <span className="sm:hidden">新規</span>
+              <span className="hidden sm:inline">新規プロジェクト</span>
             </button>
           </div>
 

@@ -5,7 +5,8 @@ import LoginView from './LoginView';
 import HomeView from './HomeView';
 import ProjectManagerView from './ProjectManagerView';
 import ProfileView from './ProfileView';
-import { auth, signOut } from './firebase';
+import { auth, signOut, onAuthStateChanged } from './firebase';
+import { isDemoMode, demoStore } from './demoData';
 import { 
   subscribeUserProjects, 
   subscribeProjectData, 
@@ -27,6 +28,7 @@ const STORAGE_KEY_USER = 'lean-connect-user';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    if (isDemoMode) return null; // デモでも毎回ログイン画面から始める(ボタンを押すとデモユーザーでログイン)
     const saved = localStorage.getItem(STORAGE_KEY_USER);
     return saved ? JSON.parse(saved) : null;
   });
@@ -48,6 +50,19 @@ export default function App() {
   const requestConfirm = (options: ConfirmOptions) => setConfirmState({ ...options, isOpen: true });
   const closeConfirm = () => setConfirmState(prev => prev ? { ...prev, isOpen: false } : null);
 
+  // Firebase Auth側のログイン状態を監視し、途中でセッションが切れたら
+  // アプリ側もログアウト扱いにする(切れたまま操作して保存が失敗し続けるのを防ぐ)
+  useEffect(() => {
+    if (isDemoMode) return; // オフラインデモ中は実際のログインセッションがないため監視しない
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (!firebaseUser) {
+        setCurrentUser(null);
+        localStorage.removeItem(STORAGE_KEY_USER);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   useEffect(() => {
     if (!currentUser) return;
     const unsubscribe = subscribeUserProjects(currentUser.id, (loadedProjects) => {
@@ -61,7 +76,7 @@ export default function App() {
 
   // すべての所属プロジェクトのタスクを常に購読してホーム画面用の進捗計算に反映する
   useEffect(() => {
-    if (!projects.length) return;
+    if (isDemoMode || !projects.length) return; // デモではFirestoreにつながず、下のhomeTasksでデモデータを使う
 
     const unsubs = projects.map(project => {
       const tasksRef = collection(db, 'projects', project.id, 'tasks');
@@ -126,12 +141,12 @@ export default function App() {
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
+    if (!isDemoMode) localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(user));
   };
 
   const handleUpdateUser = (updatedUser: User) => {
     setCurrentUser(updatedUser);
-    localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(updatedUser));
+    if (!isDemoMode) localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(updatedUser));
   };
 
   const handleSetProjects: React.Dispatch<React.SetStateAction<Project[]>> = (valueOrUpdater) => {
@@ -154,7 +169,10 @@ export default function App() {
         }
       });
 
+      // 変更があったプロジェクトだけ保存する(他のメンバーの変更を古いデータで上書きしないため)
       processedNext.forEach(async (p) => {
+        const old = prev.find(op => op.id === p.id);
+        if (old && JSON.stringify(old) === JSON.stringify(p)) return;
         try {
           await saveProject(p);
         } catch (error) {
@@ -182,7 +200,10 @@ export default function App() {
         }
       });
 
+      // 変更があったタスクだけ保存する(他のメンバーの変更を古いデータで上書きしないため)
       next.forEach(async (t) => {
+        const old = prev.find(pt => pt.taskId === t.taskId);
+        if (old && JSON.stringify(old) === JSON.stringify(t)) return;
         try {
           await saveTaskDoc(activeProjectId, t);
         } catch (error) {
@@ -211,6 +232,8 @@ export default function App() {
       });
 
       next.forEach(async (g) => {
+        const old = prev.find(pg => pg.id === g.id);
+        if (old && JSON.stringify(old) === JSON.stringify(g)) return;
         try {
           await saveGroupDoc(activeProjectId, g);
         } catch (error) {
@@ -239,6 +262,8 @@ export default function App() {
       });
 
       next.forEach(async (e) => {
+        const old = prev.find(pe => pe.id === e.id);
+        if (old && JSON.stringify(old) === JSON.stringify(e)) return;
         try {
           await saveExpenseDoc(activeProjectId, e);
         } catch (error) {
@@ -267,6 +292,8 @@ export default function App() {
       });
 
       next.forEach(async (m) => {
+        const old = prev.find(pm => pm.id === m.id);
+        if (old && JSON.stringify(old) === JSON.stringify(m)) return;
         try {
           await saveMemoDoc(activeProjectId, m);
         } catch (error) {
@@ -282,7 +309,8 @@ export default function App() {
   const activeProject = projects.find(p => p.id === activeProjectId);
 
   // ホーム画面表示時は全プロジェクトの統合タスク配列を渡す
-  const homeTasks = Object.values(allTasks).flat();
+  // デモではFirestoreの代わりに、操作内容が反映されたデモデータを使う
+  const homeTasks = isDemoMode && demoStore ? demoStore.tasks : Object.values(allTasks).flat();
 
   if (!currentUser) return <LoginView onLogin={handleLogin} />;
 
@@ -318,6 +346,12 @@ export default function App() {
                   confirmText: 'ログアウト',
                   isDanger: true,
                   onConfirm: async () => {
+                    if (isDemoMode) {
+                      // デモ中はFirebaseのログアウトは呼ばず、ログイン画面に戻すだけ
+                      setActiveProjectId(null);
+                      setCurrentUser(null);
+                      return;
+                    }
                     await signOut(auth);
                     setCurrentUser(null);
                     localStorage.removeItem(STORAGE_KEY_USER);
