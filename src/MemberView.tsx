@@ -25,7 +25,9 @@ export default function MemberView({
   requestConfirm 
 }: MemberViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [, setSelectedMemberTasks] = useState<{member: Member, tasks: Task[]} | null>(null);
+  
+  // ▼ 修正: 選択されたメンバーのタスクを保持するステートを有効化
+  const [selectedMemberTasks, setSelectedMemberTasks] = useState<{member: Member, tasks: Task[]} | null>(null);
 
   // ▼ 修正: モーダルの開閉フラグのセッターを有効化
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
@@ -45,7 +47,6 @@ export default function MemberView({
     resetSearchState();
     setIsAddPanelOpen(true);
   };
-
 
   useEffect(() => {
     const email = newMemberEmail.trim();
@@ -96,7 +97,7 @@ export default function MemberView({
 
   const handleDeleteMember = (member: Member) => {
     if (isReadOnly) return;
-    const memberName = member.username || member.name;
+    const memberName = member.name || member.username;
     requestConfirm({
       title: 'メンバーの削除',
       message: `${memberName}さんをプロジェクトから削除しますか？\n（相手の画面からこのプロジェクトが表示されなくなります）`,
@@ -114,9 +115,11 @@ export default function MemberView({
     setSelectedMemberTasks({ member, tasks: mTasks });
   };
 
-  const filteredMembers = members.filter(m => 
-    (m.username || m.name).toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredMembers = members.filter(m => {
+    const nameMatch = (m.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const usernameMatch = (m.username || '').toLowerCase().includes(searchQuery.toLowerCase());
+    return nameMatch || usernameMatch;
+  });
 
   return (
     <div className="flex-1 overflow-auto bg-gray-50 p-4 md:p-6 mb-16 md:mb-0 relative font-sans">
@@ -132,7 +135,7 @@ export default function MemberView({
           <div className="pl-2 text-gray-400">🔍</div>
           <input 
             type="text" 
-            placeholder="ユーザーIDで検索" 
+            placeholder="名前やユーザーIDで検索" 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 outline-none text-sm font-medium p-1"
@@ -144,20 +147,21 @@ export default function MemberView({
             <p className="text-gray-400 text-center font-bold mt-4">該当するメンバーがいません</p>
           ) : (
             filteredMembers.map(m => {
-              const displayName = m.username || m.name;
+              const memberName = m.name || m.username || '名前未設定';
+              const username = m.username ? `@${m.username}` : '';
               return (
                 <div key={m.id} className="flex justify-between items-center bg-white p-3 rounded-2xl border border-gray-200 shadow-sm">
                   <div className="flex items-center gap-4">
                     {m.avatarUrl ? (
-                      <img src={m.avatarUrl} alt={displayName} className="w-11 h-11 rounded-full border border-gray-200 object-cover shadow-xs" />
+                      <img src={m.avatarUrl} alt={memberName} className="w-11 h-11 rounded-full border border-gray-200 object-cover shadow-xs" />
                     ) : (
-                      <div className={`${m.color} w-11 h-11 rounded-full flex items-center justify-center text-white text-base font-bold shadow-inner`}>
-                        {displayName.charAt(0)}
+                      <div className={`${m.color || 'bg-blue-600'} w-11 h-11 rounded-full flex items-center justify-center text-white text-base font-bold shadow-inner`}>
+                        {memberName.charAt(0)}
                       </div>
                     )}
                     <div className="flex flex-col">
-                      <span className="font-bold text-gray-800 text-base">{displayName}</span>
-                      <span className="text-xs text-gray-400 font-mono">@{m.username || 'id_none'}</span>
+                      <span className="font-bold text-gray-800 text-base">{memberName}</span>
+                      {username && <span className="text-xs text-gray-400 font-mono">{username}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
