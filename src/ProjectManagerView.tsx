@@ -75,6 +75,8 @@ export default function ProjectManagerView({
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
+  const [isMemberSelectModalOpen, setIsMemberSelectModalOpen] = useState(false);
+
   const selectedTask = useMemo(
     () =>
       selectedTaskId
@@ -285,10 +287,10 @@ export default function ProjectManagerView({
 
     setNewTaskStart(`${y}-${m}-${d}`);
     setNewTaskEnd(`${ny}-${nm}-${nd}`);
-    setNewTaskDescription('');
-    setNewTaskStartTime('10:00');
-    setNewTaskEndTime('12:00');
-    setNewTaskType('resident');
+    setNewTaskDescription("");
+    setNewTaskStartTime("10:00");
+    setNewTaskEndTime("12:00");
+    setNewTaskType("resident");
     setNewTaskAssignees([]);
     setIsTaskModalOpen(true);
   };
@@ -349,7 +351,6 @@ export default function ProjectManagerView({
     setIsGroupModalOpen(false);
   };
 
-  // グループ詳細画面の変更を保存して閉じる処理
   const handleSaveAndCloseGroup = () => {
     if (!selectedGroup || project.status === "completed") {
       setSelectedGroup(null);
@@ -400,13 +401,13 @@ export default function ProjectManagerView({
     if (!selectedTask || project.status === "completed") return;
     const updated = { ...selectedTask, ...updates };
 
-    if (updated.taskMode === 'day' && updated.taskType === 'resident') {
+    if (updated.taskMode === "day" && updated.taskType === "resident") {
       const list = updated.assignees || [];
       if (!updated.currentId || !list.includes(updated.currentId)) {
         updated.currentId = list[0];
       }
     }
-    
+
     (Object.keys(updated) as (keyof Task)[]).forEach((key) => {
       if (updated[key] === undefined) {
         delete updated[key];
@@ -433,13 +434,22 @@ export default function ProjectManagerView({
       task.currentId || task.assignees[0],
     );
     const nextIndex = (currentIndex + 1) % task.assignees.length;
-    const nextAssignee = task.assignees[nextIndex];
+    const nextAssigneeId = task.assignees[nextIndex];
+    const nextMember = projectMembers.find((m) => m.id === nextAssigneeId);
+    const nextMemberName = nextMember ? nextMember.name : "次のメンバー";
 
-    setTasks(
-      tasks.map((t) =>
-        t.taskId === task.taskId ? { ...t, currentId: nextAssignee } : t,
-      ),
-    );
+    requestConfirm({
+      title: "担当の引き継ぎ",
+      message: `「${task.taskName}」の担当を ${nextMemberName} さんに引き継ぎますか？`,
+      confirmText: "引き継ぐ",
+      onConfirm: () => {
+        setTasks(
+          tasks.map((t) =>
+            t.taskId === task.taskId ? { ...t, currentId: nextAssigneeId } : t,
+          ),
+        );
+      },
+    });
   };
 
   const currentUserDisplayName = currentUser.username || currentUser.name;
@@ -483,6 +493,7 @@ export default function ProjectManagerView({
 
   return (
     <div className="flex-1 flex flex-col md:flex-row h-full min-h-0 bg-white relative font-sans overflow-hidden">
+      {/* PC用サイドバー */}
       <aside className="hidden md:flex flex-col w-64 bg-gray-50 border-r border-gray-200 shrink-0 z-20">
         <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 shrink-0">
           <div className="flex items-center overflow-hidden">
@@ -541,6 +552,7 @@ export default function ProjectManagerView({
           </button>
         </div>
 
+        {/* PC用ナビゲーションメニュー */}
         <nav className="flex-1 py-6 flex flex-col gap-2 px-4 overflow-y-auto">
           {navMenuItems.map((item) => {
             const isActive = currentNav === item.id;
@@ -609,8 +621,9 @@ export default function ProjectManagerView({
         )}
       </aside>
 
-      {/* --- メインビュー領域（右側） --- */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative">
+      {/* --- メインビュー領域（右側 / スマホ全体） --- */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative pb-16 md:pb-0">
+        {/* スマホ用ヘッダー（固定） */}
         <header className="md:hidden h-16 border-b border-gray-200 px-4 flex items-center justify-between shrink-0 bg-white z-20">
           <div className="flex items-center text-lg font-bold overflow-hidden">
             <button
@@ -689,8 +702,8 @@ export default function ProjectManagerView({
           </div>
         </header>
 
-        {/* 内部のビュー切り替えコンテナ（overflow-auto でスクロール可能に） */}
-        <div className="flex-1 min-h-0 overflow-auto flex flex-col relative">
+        {/* 内部のビュー切り替えコンテナ */}
+        <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
           {currentNav === "retrospective" ? (
             <RetrospectiveView
               project={project}
@@ -763,85 +776,89 @@ export default function ProjectManagerView({
               requestConfirm={requestConfirm}
             />
           ) : (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="bg-white border-b border-gray-200 px-4 py-3 flex justify-center items-center shrink-0 z-30">
-                <div className="flex bg-gray-100 rounded-xl p-1 w-full max-w-sm text-sm shadow-inner">
-                  <button
-                    onClick={() => setTaskMode("prep")}
-                    className={`flex-1 py-2 flex items-center justify-center gap-2 font-bold transition-all rounded-lg cursor-pointer ${
-                      taskMode === "prep"
-                        ? "text-blue-600 bg-white shadow-xs"
-                        : "text-gray-500 hover:text-gray-700"
-                    }`}
-                  >
-                    <span>📄</span> 準備モード
-                  </button>
-                  <button
-                    onClick={() => setTaskMode("day")}
-                    className={`flex-1 py-2 flex items-center justify-center gap-2 font-bold transition-all rounded-lg cursor-pointer ${
-                      taskMode === "day"
-                        ? "text-blue-600 bg-white shadow-xs"
-                        : "text-gray-500 hover:text-gray-700"
-                    }`}
-                  >
-                    <span>🕒</span> 当日モード
-                  </button>
+            <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden">
+              {/* --- 下のメニューと同様に画面上部に完全固定するコントロール群パーツ --- */}
+              <div className="shrink-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+                <div className="px-4 py-3 flex justify-center items-center">
+                  <div className="flex bg-gray-100 rounded-xl p-1 w-full max-w-sm text-sm shadow-inner">
+                    <button
+                      onClick={() => setTaskMode("prep")}
+                      className={`flex-1 py-2 flex items-center justify-center gap-2 font-bold transition-all rounded-lg cursor-pointer ${
+                        taskMode === "prep"
+                          ? "text-blue-600 bg-white shadow-xs"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      <span>📄</span> 準備モード
+                    </button>
+                    <button
+                      onClick={() => setTaskMode("day")}
+                      className={`flex-1 py-2 flex items-center justify-center gap-2 font-bold transition-all rounded-lg cursor-pointer ${
+                        taskMode === "day"
+                          ? "text-blue-600 bg-white shadow-xs"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      <span>🕒</span> 当日モード
+                    </button>
+                  </div>
                 </div>
+
+                {taskMode === "prep" && (
+                  <div className="px-4 py-2 flex justify-center items-center gap-10 border-t border-gray-100 bg-white">
+                    <button
+                      onClick={handlePrevMonth}
+                      disabled={currentIndex <= 0}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 cursor-pointer"
+                      aria-label="前月へ"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M15 19l-7-7 7-7"
+                        />
+                      </svg>
+                    </button>
+                    <div className="text-lg font-extrabold text-gray-800">
+                      {selectedYearMonth
+                        ? `${selectedYearMonth.split("-")[0]}年 ${parseInt(selectedYearMonth.split("-")[1], 10)}月`
+                        : ""}
+                    </div>
+                    <button
+                      onClick={handleNextMonth}
+                      disabled={currentIndex >= availableYearMonths.length - 1}
+                      className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 cursor-pointer"
+                      aria-label="次月へ"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={3}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
 
-              {taskMode === "prep" && (
-                <div className="bg-white border-b border-gray-200 px-4 py-2 flex justify-center items-center gap-10 shrink-0 z-30">
-                  <button
-                    onClick={handlePrevMonth}
-                    disabled={currentIndex <= 0}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 cursor-pointer"
-                    aria-label="前月へ"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={3}
-                        d="M15 19l-7-7 7-7"
-                      />
-                    </svg>
-                  </button>
-                  <div className="text-lg font-extrabold text-gray-800">
-                    {selectedYearMonth
-                      ? `${selectedYearMonth.split("-")[0]}年 ${parseInt(selectedYearMonth.split("-")[1], 10)}月`
-                      : ""}
-                  </div>
-                  <button
-                    onClick={handleNextMonth}
-                    disabled={currentIndex >= availableYearMonths.length - 1}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-30 cursor-pointer"
-                    aria-label="次月へ"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={3}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              )}
-
-              <div className="flex-1 overflow-hidden relative">
+              {/* ガントチャートのタスク領域（ここだけがスクロールする） */}
+              <div className="flex-1 min-h-0 overflow-hidden relative">
                 {taskMode === "prep" ? (
                   <PrepGanttView
                     tasks={projectTasks}
@@ -864,7 +881,7 @@ export default function ProjectManagerView({
                 )}
 
                 {project.status === "active" && (
-                  <div className="absolute bottom-6 right-6 z-40">
+                  <div className="absolute bottom-20 right-6 z-40 md:bottom-6">
                     <button
                       onClick={() => handleOpenTaskModal("")}
                       className="bg-blue-600 hover:bg-blue-700 transition-all text-white font-bold p-4 rounded-full shadow-lg flex items-center justify-center gap-2 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
@@ -881,7 +898,8 @@ export default function ProjectManagerView({
           )}
         </div>
 
-        <nav className="md:hidden h-16 bg-white border-t border-gray-200 flex justify-around items-center text-[10px] text-gray-500 shrink-0 z-40">
+        {/* --- スマホ用 下部固定ナビゲーションメニュー --- */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-gray-200 flex justify-around items-center text-[10px] text-gray-500 shrink-0 z-50 shadow-lg">
           {navMenuItems.map((item) => {
             const isActive = currentNav === item.id;
             return (
@@ -915,7 +933,7 @@ export default function ProjectManagerView({
         </nav>
       </div>
 
-      {/* --- グループ詳細・編集モーダル --- */}
+      {/* --- 各種モーダル類 --- */}
       {selectedGroup && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
@@ -993,7 +1011,7 @@ export default function ProjectManagerView({
                         </button>
                       )}
                     </div>
-                    <div className="bg-gray-50 p-3 rounded-xl max-h-28 overflow-y-auto text-sm">
+                    <div className="bg-gray-50 p-3 rounded-xl max-h-28 overflow-y-hidden text-sm">
                       {activeGroupTasks.length === 0 ? (
                         <p className="text-gray-400 text-xs">なし</p>
                       ) : (
@@ -1411,6 +1429,9 @@ export default function ProjectManagerView({
                   割り当てメンバー
                 </label>
                 <div className="flex flex-wrap gap-2 items-center bg-gray-50 p-2.5 rounded-xl border border-gray-200 min-h-12">
+                  {(!editingTask.assignees || editingTask.assignees.length === 0) && (
+                    <span className="text-xs text-gray-400 font-medium">割り当てられたメンバーはいません</span>
+                  )}
                   {editingTask.assignees?.map((uid) => {
                     const member = projectMembers.find((m) => m.id === uid);
                     const colorClass = member ? member.color : "bg-gray-400";
@@ -1425,6 +1446,7 @@ export default function ProjectManagerView({
                         {memberName}
                         {project.status === "active" && (
                           <button
+                            type="button"
                             onClick={() =>
                               handleEditChange({
                                 assignees: editingTask.assignees?.filter(
@@ -1432,7 +1454,7 @@ export default function ProjectManagerView({
                                 ),
                               })
                             }
-                            className="ml-1.5 text-white hover:text-red-200"
+                            className="ml-1.5 text-white hover:text-red-200 cursor-pointer"
                           >
                             &times;
                           </button>
@@ -1440,35 +1462,16 @@ export default function ProjectManagerView({
                       </span>
                     );
                   })}
-                  {project.status === "active" && (
-                    <select
-                      onChange={(e) => {
-                        if (
-                          e.target.value &&
-                          !editingTask.assignees?.includes(e.target.value)
-                        ) {
-                          handleEditChange({
-                            assignees: [
-                              ...(editingTask.assignees || []),
-                              e.target.value,
-                            ],
-                          });
-                        }
-                        e.target.value = "";
-                      }}
-                      className="text-xs border rounded-lg p-1 bg-white outline-none"
-                    >
-                      <option value="">＋追加</option>
-                      {projectMembers
-                        .filter((m) => !editingTask.assignees?.includes(m.id))
-                        .map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {memberDisplayLabel(m)}
-                          </option>
-                        ))}
-                    </select>
-                  )}
                 </div>
+                {project.status === "active" && (
+                  <button
+                    type="button"
+                    onClick={() => setIsMemberSelectModalOpen(true)}
+                    className="mt-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>👥</span> メンバーを選択・変更する
+                  </button>
+                )}
               </div>
 
               {editingTask.taskMode === "day" &&
@@ -1478,15 +1481,28 @@ export default function ProjectManagerView({
                       📌 常駐タスク引き継ぎ管理
                     </p>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-bold">
-                        現在の担当:{" "}
+                      <div className="flex items-center gap-2">
                         {(() => {
                           const cm = projectMembers.find(
                             (m) => m.id === editingTask.currentId,
                           );
-                          return cm ? memberDisplayLabel(cm) : "未割当";
+                          const avatar = cm?.avatarUrl || cm?.iconUrl;
+                          return (
+                            <>
+                              {avatar ? (
+                                <img src={avatar} alt="avatar" className="w-8 h-8 rounded-full object-cover border shadow-xs" />
+                              ) : (
+                                <div className={`w-8 h-8 rounded-full ${cm?.color || 'bg-blue-600'} text-white text-xs font-bold flex items-center justify-center shadow-xs`}>
+                                  {cm ? cm.name.charAt(0) : '未'}
+                                </div>
+                              )}
+                              <span className="text-sm font-bold">
+                                現在の担当: {cm ? memberDisplayLabel(cm) : "未割当"}
+                              </span>
+                            </>
+                          );
                         })()}
-                      </span>
+                      </div>
                       {project.status === "active" && (
                         <button
                           type="button"
@@ -1557,6 +1573,80 @@ export default function ProjectManagerView({
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- メンバー選択・変更モーダル --- */}
+      {isMemberSelectModalOpen && editingTask && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-100 p-4"
+          onClick={() => setIsMemberSelectModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden p-6 flex flex-col gap-4 animate-in fade-in zoom-in duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-extrabold text-base text-gray-800">メンバーの割り当て</h3>
+              <button
+                onClick={() => setIsMemberSelectModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500">
+              担当するメンバーをクリックして選択または解除してください。
+            </p>
+
+            <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
+              {projectMembers.map((m) => {
+                const assignees = editingTask.assignees || [];
+                const isSelected = assignees.includes(m.id);
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => {
+                      const updated = isSelected
+                        ? assignees.filter((id) => id !== m.id)
+                        : [...assignees, m.id];
+                      handleEditChange({ assignees: updated });
+                    }}
+                    className={`flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer ${
+                      isSelected ? "bg-blue-50 border-blue-300 shadow-xs" : "bg-white border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {m.avatarUrl ? (
+                        <img src={m.avatarUrl} alt={m.name} className="w-8 h-8 rounded-full object-cover border" />
+                      ) : (
+                        <div className={`w-8 h-8 rounded-full ${m.color || "bg-blue-600"} text-white text-xs font-bold flex items-center justify-center`}>
+                          {m.name.charAt(0)}
+                        </div>
+                      )}
+                      <span className="font-bold text-sm text-gray-800">{m.name}</span>
+                    </div>
+                    <div className={`w-5 h-5 rounded-md flex items-center justify-center border text-xs font-bold ${
+                      isSelected ? "bg-blue-600 text-white border-blue-600" : "border-gray-300 bg-white"
+                    }`}>
+                      {isSelected && "✓"}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-3 border-t flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsMemberSelectModalOpen(false)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition-colors cursor-pointer"
+              >
+                完了
+              </button>
             </div>
           </div>
         </div>
