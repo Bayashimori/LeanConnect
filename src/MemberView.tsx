@@ -26,10 +26,9 @@ export default function MemberView({
 }: MemberViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   
-  // ▼ 修正: 選択されたメンバーのタスクを保持するステートを有効化
+  // ▼ 修正: 選択されたメンバーのタスクを保持するステートを正常に有効化
   const [selectedMemberTasks, setSelectedMemberTasks] = useState<{member: Member, tasks: Task[]} | null>(null);
 
-  // ▼ 修正: モーダルの開閉フラグのセッターを有効化
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -81,7 +80,6 @@ export default function MemberView({
     return () => clearTimeout(timer);
   }, [newMemberEmail]);
 
-  // ▼ メンバー追加を実行する処理
   const handleAddMember = () => {
     if (!matchedUser) return;
     const currentMemberIds = project.memberIds || [];
@@ -191,7 +189,49 @@ export default function MemberView({
         </div>
       )}
 
-      {/* ▼ 新規追加: メンバー招待モーダル */}
+      {/* 担当タスク一覧表示用モーダル */}
+      {selectedMemberTasks && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedMemberTasks(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden p-6 flex flex-col gap-4 animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="font-extrabold text-lg text-gray-800">
+                {selectedMemberTasks.member.name || selectedMemberTasks.member.username} さんの担当タスク
+              </h3>
+              <button onClick={() => setSelectedMemberTasks(null)} className="text-gray-400 hover:text-gray-600 text-2xl cursor-pointer">&times;</button>
+            </div>
+
+            <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
+              {selectedMemberTasks.tasks.length === 0 ? (
+                <p className="text-gray-400 text-center font-bold py-6">担当しているタスクはありません</p>
+              ) : (
+                selectedMemberTasks.tasks.map(t => (
+                  <div key={t.taskId} className="bg-gray-50 border border-gray-200 rounded-xl p-3 flex flex-col gap-1">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-sm text-gray-800">{t.taskName}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        t.taskStatus === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {t.taskStatus === 'completed' ? '完了' : '進行中'}
+                      </span>
+                    </div>
+                    {t.description && (
+                      <p className="text-xs text-gray-500 line-clamp-2">{t.description}</p>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="pt-2 border-t flex justify-end">
+              <button onClick={() => setSelectedMemberTasks(null)} className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-colors cursor-pointer">
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* メンバー招待モーダル */}
       {isAddPanelOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setIsAddPanelOpen(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden p-6 flex flex-col gap-4 animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
