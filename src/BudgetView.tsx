@@ -27,13 +27,19 @@ export default function BudgetView({ activeProjectId, totalBudget, setTotalBudge
   const totalExpenseAmount = useMemo(() => (expenses || []).reduce((sum, e) => sum + e.amount, 0), [expenses]);
   const balance = totalBudget - totalExpenseAmount;
 
+  // ▼ 修正: 金額の大きい順（降順）に並び替えた支出リストを作成
+  const sortedExpenses = useMemo(() => {
+    return [...(expenses || [])].sort((a, b) => b.amount - a.amount);
+  }, [expenses]);
+
   const pieChartData = useMemo(() => {
     if (totalExpenseAmount === 0) return { background: '#e5e7eb', labels: [] };
     let currentPercent = 0;
     const gradientStops: string[] = [];
     const labels: { id: string; x: number; y: number; text: string }[] = [];
     
-    (expenses || []).forEach((e) => {
+    // ▼ 修正: 並び替え済みの配列を使って円グラフの割合を計算
+    sortedExpenses.forEach((e) => {
       const percent = (e.amount / totalExpenseAmount) * 100;
       if (percent > 0) {
         const start = currentPercent;
@@ -47,7 +53,7 @@ export default function BudgetView({ activeProjectId, totalBudget, setTotalBudge
       }
     });
     return { background: `conic-gradient(${gradientStops.join(', ')})`, labels };
-  }, [expenses, totalExpenseAmount]);
+  }, [sortedExpenses, totalExpenseAmount]);
 
   const saveBudget = (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,10 +174,11 @@ export default function BudgetView({ activeProjectId, totalBudget, setTotalBudge
               </div>
 
               <div className="flex-1 w-full text-sm flex flex-col gap-2">
-                {(!expenses || expenses.length === 0) ? (
+                {(!sortedExpenses || sortedExpenses.length === 0) ? (
                   <p className="text-gray-400 text-center font-bold">データがありません</p>
                 ) : (
-                  expenses.map(e => (
+                  // ▼ 修正: 金額の高い順に並び替えられた配列をリスト表示
+                  sortedExpenses.map(e => (
                     <div 
                       key={e.id} 
                       className={`group ${!isReadOnly ? 'cursor-pointer hover:bg-gray-50' : ''} p-3 rounded-xl border border-transparent hover:border-gray-200 transition-all`}

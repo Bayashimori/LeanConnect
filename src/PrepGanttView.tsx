@@ -36,7 +36,7 @@ export default function PrepGanttView({
     if (!container || !onVisibleMonthChange || dates.length === 0) return;
 
     const handleScroll = () => {
-      const headerOffset = 60; // ヘッダー行の高さ
+      const headerOffset = 60;
       const containerTop = container.getBoundingClientRect().top;
 
       for (const d of dates) {
@@ -112,15 +112,20 @@ export default function PrepGanttView({
     return <div className="flex items-center justify-center h-full text-gray-400 font-bold">タスクがありません</div>;
   }
 
+  // カラム数に応じて全体の最小幅を動的に確保し、細くなりすぎたら横スクロールさせる
+  const minWidthPx = Math.max(320, 60 + (totalCols - 1) * 55 + 80);
+
   return (
     <div ref={containerRef} className="flex-1 overflow-auto bg-white relative w-full h-full">
       <div 
-        className="grid w-full"
+        className="grid"
         style={{
-          gridTemplateColumns: `60px repeat(${Math.max(1, totalCols - 2)}, minmax(40px, 80px)) 80px`,
+          minWidth: `${minWidthPx}px`,
+          gridTemplateColumns: `60px repeat(${Math.max(1, totalCols - 2)}, minmax(45px, 1fr)) 80px`,
           gridTemplateRows: `56px repeat(${dates.length}, 60px)`
         }}
       >
+        {/* 左上のコーナー空白（スクロール時に縦横両方で固定） */}
         <div 
           className="sticky top-0 left-0 z-50 bg-white border-b border-r border-gray-300 shadow-[0_2px_0_0_#e5e7eb]" 
           style={{ gridRow: 1, gridColumn: 1 }}
@@ -131,8 +136,9 @@ export default function PrepGanttView({
           style={{ gridRow: 1, gridColumn: `2 / span ${Math.max(1, totalCols - 1)}` }}
         />
 
+        {/* グループ名見出し行（top-0 で画面上部に完全固定） */}
         <div 
-          className="sticky top-0 z-45 flex items-center justify-center text-xs font-bold text-gray-400 bg-white border-r border-gray-200"
+          className="sticky top-0 z-45 flex items-center justify-center text-xs font-bold text-gray-400 bg-white border-r border-b border-gray-300"
           style={{ gridRow: 1, gridColumn: `${groupStartCol[''] || 2} / span ${groupMaxCols[''] || 1}` }}
         >
           未分類
@@ -142,7 +148,7 @@ export default function PrepGanttView({
           <div
             key={g.id}
             onClick={() => onSelectGroup(g)}
-            className="sticky top-0 z-45 flex flex-col items-center justify-center text-sm font-bold text-blue-800 bg-blue-50/90 border-r border-blue-200 cursor-pointer hover:bg-blue-100 transition-colors backdrop-blur-md"
+            className="sticky top-0 z-45 flex flex-col items-center justify-center text-sm font-bold text-blue-800 bg-blue-50/95 border-r border-b border-gray-300 cursor-pointer hover:bg-blue-100 transition-colors backdrop-blur-md"
             style={{ gridRow: 1, gridColumn: `${groupStartCol[g.id] || 2} / span ${groupMaxCols[g.id] || 1}` }}
             title="タップして詳細・削除"
           >
@@ -153,7 +159,7 @@ export default function PrepGanttView({
 
         <div
           onClick={onAddGroup}
-          className="sticky top-0 z-45 flex items-center justify-center text-sm font-bold text-gray-500 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+          className="sticky top-0 z-45 flex items-center justify-center text-sm font-bold text-gray-500 bg-gray-50 border-b border-gray-300 cursor-pointer hover:bg-gray-100 transition-colors"
           style={{ gridRow: 1, gridColumn: totalCols }}
         >
           ＋グループ
@@ -171,6 +177,7 @@ export default function PrepGanttView({
           />
         ))}
 
+        {/* 左側の日付列（横スクロール時に左側に固定） */}
         {dates.map((d, index) => (
           <div
             key={d.dateString}
@@ -216,7 +223,7 @@ export default function PrepGanttView({
               }}
             >
               <div className="sticky top-27.5 flex flex-col items-center justify-start py-2 w-full">
-                <div className="relative h-5 w-full flex justify-center mb-1">
+                <div className="relative h-5 w-5 flex justify-center mb-1">
                   {isCompleted && <span className="absolute text-white bg-green-500 rounded-full w-4 h-4 flex items-center justify-center text-[10px]">✓</span>}
                   {t.needHelp && <span className="absolute right-0 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full shadow-md animate-bounce">🆘</span>}
                 </div>

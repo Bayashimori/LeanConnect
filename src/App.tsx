@@ -28,7 +28,7 @@ const STORAGE_KEY_USER = 'lean-connect-user';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    if (isDemoMode) return null; // デモでも毎回ログイン画面から始める(ボタンを押すとデモユーザーでログイン)
+    if (isDemoMode) return null;
     const saved = localStorage.getItem(STORAGE_KEY_USER);
     return saved ? JSON.parse(saved) : null;
   });
@@ -50,10 +50,8 @@ export default function App() {
   const requestConfirm = (options: ConfirmOptions) => setConfirmState({ ...options, isOpen: true });
   const closeConfirm = () => setConfirmState(prev => prev ? { ...prev, isOpen: false } : null);
 
-  // Firebase Auth側のログイン状態を監視し、途中でセッションが切れたら
-  // アプリ側もログアウト扱いにする(切れたまま操作して保存が失敗し続けるのを防ぐ)
   useEffect(() => {
-    if (isDemoMode) return; // オフラインデモ中は実際のログインセッションがないため監視しない
+    if (isDemoMode) return;
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (!firebaseUser) {
         setCurrentUser(null);
@@ -74,9 +72,8 @@ export default function App() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // すべての所属プロジェクトのタスクを常に購読してホーム画面用の進捗計算に反映する
   useEffect(() => {
-    if (isDemoMode || !projects.length) return; // デモではFirestoreにつながず、下のhomeTasksでデモデータを使う
+    if (isDemoMode || !projects.length) return;
 
     const unsubs = projects.map(project => {
       const tasksRef = collection(db, 'projects', project.id, 'tasks');
@@ -169,7 +166,6 @@ export default function App() {
         }
       });
 
-      // 変更があったプロジェクトだけ保存する(他のメンバーの変更を古いデータで上書きしないため)
       processedNext.forEach(async (p) => {
         const old = prev.find(op => op.id === p.id);
         if (old && JSON.stringify(old) === JSON.stringify(p)) return;
@@ -200,7 +196,6 @@ export default function App() {
         }
       });
 
-      // 変更があったタスクだけ保存する(他のメンバーの変更を古いデータで上書きしないため)
       next.forEach(async (t) => {
         const old = prev.find(pt => pt.taskId === t.taskId);
         if (old && JSON.stringify(old) === JSON.stringify(t)) return;
@@ -307,17 +302,14 @@ export default function App() {
   };
 
   const activeProject = projects.find(p => p.id === activeProjectId);
-
-  // ホーム画面表示時は全プロジェクトの統合タスク配列を渡す
-  // デモではFirestoreの代わりに、操作内容が反映されたデモデータを使う
   const homeTasks = isDemoMode && demoStore ? demoStore.tasks : Object.values(allTasks).flat();
 
   if (!currentUser) return <LoginView onLogin={handleLogin} />;
 
   return (
     <div className="flex h-screen w-full bg-gray-50 text-gray-800 font-sans overflow-hidden relative">
-      <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-white md:bg-gray-50 md:p-6">
-        <div className={`flex-1 flex flex-col h-full relative bg-white ${activeProjectId ? 'md:rounded-2xl md:shadow-sm md:border md:border-gray-200' : ''} overflow-hidden`}>
+      <main className="flex-1 flex flex-col h-full min-h-0 relative overflow-hidden bg-white md:bg-gray-50 md:p-6">
+        <div className={`flex-1 flex flex-col h-full min-h-0 relative bg-white ${activeProjectId ? 'md:rounded-2xl md:shadow-sm md:border md:border-gray-200' : ''} overflow-hidden`}>
           
           {isProfileOpen ? (
             <ProfileView
@@ -347,7 +339,6 @@ export default function App() {
                   isDanger: true,
                   onConfirm: async () => {
                     if (isDemoMode) {
-                      // デモ中はFirebaseのログアウトは呼ばず、ログイン画面に戻すだけ
                       setActiveProjectId(null);
                       setCurrentUser(null);
                       return;
